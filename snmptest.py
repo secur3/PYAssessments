@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+# Takes a 2 column (IP,String) CSV file and tests each String
+# on the listed IP to validate read vs write level SNMP access
+#
+# Requires pysnmp to be installed
+
 import csv
 import logging
 from pysnmp.hlapi import *
