@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 
+# Brute force hostnames for a domain
+# set 'domain' to the client domain name
+# set 'base' to the IP address the 'domain' resolves to
+#       this help to catch wildcard entries
+# set 'maxt' to the number of concurrent threads
+# requires "Recong-ng" installed in the default Kali location (we utilize it's hostname list)
+
 import socket
 import threading
 import logging
@@ -7,8 +14,8 @@ import time
 
 myloglevel = logging.INFO
 
-domain = "purfoods.com"
-base = "198.71.196.31"
+domain = "example.com"
+base = "1.2.3.4"
 maxt = 32
 
 logging.basicConfig(level=myloglevel, format='[%(levelname)s] %(message)s')
