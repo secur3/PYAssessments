@@ -11,12 +11,16 @@ import socket
 import threading
 import logging
 import time
+import Queue
+from sys import exit
 
 myloglevel = logging.INFO
+myq = Queue.Queue()
 
 domain = "example.com"
 base = "1.2.3.4"
 maxt = 32
+outfile = "/client/dnsresults.csv"
 
 logging.basicConfig(level=myloglevel, format='[%(levelname)s] %(message)s')
 
@@ -25,6 +29,7 @@ def getaddr(name):
        res = socket.gethostbyname(name)
        if (str(res) != base):
            logging.info(name+" => "+str(res))
+           myq.put(name+","+str(res))
     except Exception as err:
         logging.warning(name+" : "+str(err))
         if (err.errno == -3):
@@ -42,4 +47,17 @@ for name in list.readlines():
     t.daemon=True
     t.start()
     while int(threading.activeCount()) >= maxt+1: pass
+
+try:
+  f = open(outfile, 'w')
+  f.write("Host,IP\n")
+  while not myq.empty():
+    f.write(myq.get()+"\n")
+
+  f.close()
+  logging.info(outfile+" written")
+
+except Exception as err:
+  logging.warning(str(err))
+  exit()
 
