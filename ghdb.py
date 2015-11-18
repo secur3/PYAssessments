@@ -30,7 +30,7 @@ gAPIkey = 'AIzaSyDhCgX9SdxpIPjKyyYKxNsBr3LiR9HlFkU' # Google API key
 gcseID = '010723250387003176346:3wroxjhkvl0' # Google Custom Search Engine ID
 gbaseurl = 'https://www.googleapis.com/customsearch/v1?key='+gAPIkey+'&cx='+gcseID+'&q=' # Base URL for Google CSE queries
 grefer = 'https://ecfirst.com/ghdb' # Referer for GCSE (if applicable)
-maxthreads = 16 # max number of simultanious connections to the GCSE
+maxthreads = 8 # max number of simultanious connections to the GCSE
 
 outbase = '/client/' # Base dir for output files
 htmloutfile = '-ghdbqueries.html' # HTML file suffix for domain specific generated queries
@@ -68,13 +68,14 @@ def gbro(url, g=1): # Browser; takes an url and optional int (used w/ Google CSE
         ans = raw_input("Press Enter to try again.")
         resp = gbro(url)
   except (urllib2.URLError, ssl.SSLError) as err:
-    if ("timed out" in str(err)):
+    if ("unreachable" in str(err)):
       logging.warning(tname+"--> Unreachable Error: " + str(err) + " | Retrying...")
       time.sleep(2)
       if (g == 1): resp = gbro(url)
       else: resp = gbro(url, 0)
-    if ("unreachable" in str(err)):
+    if ("timed out" in str(err)):
       logging.warning(tname+"--> Timeout Error: " + str(err) + " | Retrying...")
+      time.sleep(2)
       if (g == 1): resp = gbro(url)
       else: resp = gbro(url, 0)
     elif (re.search('HTTP Error 5\d\d', str(err))):
@@ -83,7 +84,7 @@ def gbro(url, g=1): # Browser; takes an url and optional int (used w/ Google CSE
       if (g == 1): resp = gbro(url)
       else: resp = gbro(url, 0)
     else:
-      logging.critical("uncaught error")
+      logging.critical("uncaught error:"+ str(err))
       raise
 
   if resp == '':
@@ -121,7 +122,7 @@ def get_dorks(resp): # receives a BeautifulSoup'd response for page with dorks; 
           resp1 = gbro(link.get("href"), 0)
           resp2 = BeautifulSoup(resp1)
         except Exception as err:
-          logging.warning('Error: ' + str(err))
+          logging.warning('Dorks Error: ' + str(err))
           if ("timed out" in str(err)): continue
           else:
             logging.critical(str(err))
@@ -202,6 +203,7 @@ def get_ghdb(): # Gets the GHDB; pulls Categories and urls; pulls dorks and urls
     ct.daemon=True
     ct.start()
     time.sleep(sleepsec)
+    while int(threading.activeCount()) >= 3: pass
 
   while int(threading.activeCount()) > 1: pass
 
@@ -261,7 +263,7 @@ def main_cat(cat, meow):
       logging.critical('Unable to write to '+cat+'.base : ' + err.strerror)
       exit()
 
-    logging.info(cat+"COMPLETED")
+    logging.info(cat+" COMPLETED")
     return True
 
 def gen_ghdb(dom): # Creates an HTML file containing every GHDB dork customized for the provided domain
