@@ -39,7 +39,7 @@ resoutfile = '-ghdbresults.csv' # Output file suffix for domain specific test re
 domain = "" # Set later in script
 sleepsec = 1 # used for delays
 cats = {} # Globally used
-mycats = ["Footholds", "Vulnerable Files", "Vulnerable Servers", "Files containing passwords", "Files containing usernames", "Files containing juicy info", "Network or vulnerability data", "Advisories and Vulnerabilities", "Pages containing login portals"] # categories that we will try queries from when applicable
+mycats = ["Footholds", "Vulnerable Files", "Vulnerable Servers", "Files containing passwords", "Files containing usernames", "Files containing juicy info", "Network or vulnerability data", "Advisories and Vulnerabilities", "Pages containing login portals", "Error Messages", "Various Online Devices"] # categories that we will try queries from when applicable
 
 myq = Queue.Queue()
 logging.basicConfig(level=myloglevel, format='[%(levelname)s] %(message)s')
