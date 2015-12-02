@@ -44,14 +44,14 @@ mycats = ["Footholds", "Vulnerable Files", "Vulnerable Servers", "Files containi
 myq = Queue.Queue()
 logging.basicConfig(level=myloglevel, format='[%(levelname)s] %(message)s')
 
-def gbro(url, g=1): # Browser; takes an url and optional int (used w/ Google CSE); returns mechanize response object
+def gbro(url, g=1, rt=1): # Browser; takes an url and optional int (used w/ Google CSE); returns mechanize response object
   tname = threading.currentThread().name
   resp = ''
   try:
     wbro = urllib2.Request(url)
     if (g == 1): wbro.addheaders=[('User-Agent', 'Linux Firefox (ecfirst); GHDB'), ('Referer', grefer)]
-    else: wbro.addheaders=[('User-Agent', 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:35.0) Gecko/20100101 Firefox/39.0.3'), ('Accept-encoding', 'gzip')]
-    r = urllib2.urlopen(url=wbro, timeout=5.67)
+    else: wbro.addheaders=[('User-Agent', 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:35.0) Gecko/20100101 Firefox/42.0'), ('Accept-encoding', 'gzip')]
+    r = urllib2.urlopen(url=wbro, timeout=11.12)
     if r.info().get('Content-Encoding') == 'gzip':
       buf = StringIO(r.read())
       r2 = gzip.GzipFile(fileobj=buf)
@@ -69,20 +69,38 @@ def gbro(url, g=1): # Browser; takes an url and optional int (used w/ Google CSE
         resp = gbro(url)
   except (urllib2.URLError, ssl.SSLError) as err:
     if ("unreachable" in str(err)):
+      if (rt > 10):
+        logging.warning(tname+"--> giving up...")
+        resp = "BAD"
+        return resp
+
       logging.warning(tname+"--> Unreachable Error: " + str(err) + " | Retrying...")
-      time.sleep(2)
+      rt += 1
+      time.sleep(rt)
       if (g == 1): resp = gbro(url)
-      else: resp = gbro(url, 0)
+      else: resp = gbro(url, 0, rt)
     if ("timed out" in str(err)):
+      if (rt > 10):
+        logging.warning(tname+"--> giving up...")
+        resp = "BAD"
+        return resp
+
       logging.warning(tname+"--> Timeout Error: " + str(err) + " | Retrying...")
-      time.sleep(2)
+      rt += 1
+      time.sleep(rt)
       if (g == 1): resp = gbro(url)
-      else: resp = gbro(url, 0)
+      else: resp = gbro(url, 0, rt)
     elif (re.search('HTTP Error 5\d\d', str(err))):
-      logging.warning("[C]Server Error: "+ str(err.reason) + " | Retrying in 3 seconds...")
-      time.sleep(3)
+      if (rt > 10):
+        logging.warning(tname+"--> giving up...")
+        resp = "BAD"
+        return resp
+
+      logging.warning("[C]Server Error: "+ str(err.reason) + " | Retrying...")
+      rt += 1
+      time.sleep(rt)
       if (g == 1): resp = gbro(url)
-      else: resp = gbro(url, 0)
+      else: resp = gbro(url, 0, rt)
     else:
       logging.critical("uncaught error:"+ str(err))
       raise
@@ -120,6 +138,11 @@ def get_dorks(resp): # receives a BeautifulSoup'd response for page with dorks; 
       while True:
         try:
           resp1 = gbro(link.get("href"), 0)
+          if (resp1 == "BAD"):
+            logging.warning(tname+"--> Unable to get dork: "+str(BeautifulSoup(link.string, convertEntities=BeautifulSoup.HTML_ENTITIES)).rstrip())
+            skip = 1
+            break
+
           resp2 = BeautifulSoup(resp1)
         except Exception as err:
           logging.warning('Dorks Error: ' + str(err))
@@ -171,12 +194,12 @@ def startchk(): # Start-up routine; creates required dir; checks for last run ti
 
     ctime = time.time()
 
-    if ((ctime - btime) <= 5184000):
-      ans = raw_input("\nLooks like the dorks were collected less than 2 months ago. Do you want to redownload them? [y,N] ")
+    if ((ctime - btime) <= 15552000):
+      ans = raw_input("\nLooks like the dorks were collected less than 6 months ago. Do you want to redownload them? [y,N] ")
       if ('y' in ans.lower()): get_ghdb()
 
     else:
-      ans = raw_input("\nLooks like the dorks haven't been collected for over 2 months. Do you want to redownload them? [Y,n]")
+      ans = raw_input("\nLooks like the dorks haven't been collected for over 6 months. Do you want to redownload them? [Y,n]")
       if not ('n' in ans.lower()): get_ghdb()
 
   domain = str(raw_input("Enter the domain to use\n(no validity checks performed so double check\nbefore you hit enter so that queries aren't wasted): "))
