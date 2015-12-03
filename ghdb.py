@@ -107,7 +107,10 @@ def gbro(url, g=1, rt=1): # Browser; takes an url and optional int (used w/ Goog
 
   if resp == '':
     logging.critical("Hmmm, looks like we failed to get something back")
-    exit()
+    logging.warning("Retrying once...")
+    time.sleep(5)
+    if (g == 1): resp = gbro(url, 1, 10)
+    else: resp = gbro(url, 0, 10)
   return resp
 
 def get_cats(): # Returns a Dict of GHDB Category names and urls
