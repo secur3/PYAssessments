@@ -2,6 +2,7 @@
 
 # Takes a 2 column (IP,String) CSV file and tests each String
 # on the listed IP to validate read vs write level SNMP access
+# outputs results to 'resfile'
 #
 # Requires pysnmp to be installed
 
@@ -9,8 +10,10 @@ import csv
 import logging
 from pysnmp.hlapi import *
 import sys
+from time import sleep
 
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+resfile = '/client/snmp_validated.csv'
 
 if len(sys.argv) < 2:
   logging.critical("You must supply the path to the csv file")
@@ -67,21 +70,37 @@ def set_snmp(communitystring, mhost, sysObj, nValue):
 
   if errorIndication:
     logging.critical(mhost+"["+communitystring+"]"+" : "+str(errorIndication))
+    rval = "CON ERROR"
   elif errorStatus:
     logging.warning(mhost+"["+communitystring+"]"+" : "+ '%s at %s' % (
       errorStatus.prettyPrint(),
       errorIndex and varBinds[int(errorIndex)-1][0] or '?')
       )
+    rval = "SNMP ERROR"
   else:
     for name, value in varBinds:
       rval = str(value)
 
   return rval
 
+def writer(mhost, comstring, atype, desc, mode='a'):
+  if (mode == "w"): outfile = open(resfile, 'w')
+  else: outfile = open(resfile, 'a')
+  outfile.write(mhost+","+comstring+","+atype+',"'+desc+'"\n')
+  outfile.close()
+
+### end functions ###
+
+writer("Host", "String", "Access", "Desc", "w")
+
 with open(csvfl, 'r') as csvfile:
   hr = 1
   reader = csv.reader(csvfile)
   for row in reader:
+    changed = 0
+    atype = "none"
+    Desc = ""
+
     oName = oContact = oLocation = Desc = nName = nContact = nLocation = rName = rContact = rLocation = ""
     merr = 0
     if hr == 1:
@@ -92,12 +111,20 @@ with open(csvfl, 'r') as csvfile:
 
     oName, oContact, oLocation, Desc, merr = get_snmp(comstring, mhost)
     if merr == 1: continue
+    atype = "read"
     logging.info('%s[%s]::Name:%s ; Contact:%s ; Location:%s ; Description:%s' % (mhost, comstring, oName, oContact, oLocation, Desc))
     
     nName = set_snmp(comstring, mhost, "sysName", "ecfirst-Name")
+    if (nName == "ecfirst-Name"): changed = 1
     nLocation = set_snmp(comstring, mhost, "sysLocation", "ecfirst-Location")
+    if (nLocation == "ecfirst-Location"): changed = 1
     nContact = set_snmp(comstring, mhost, "sysContact", "ecfirst-contact")
+    if (nContact == "ecfirst-contact"): changed = 1
     logging.info('Updated::Name:%s ; Contact:%s ; Location:%s' % (nName, nContact, nLocation))
+    if (changed == 1): atype = "read-write"
+
+    writer(mhost, comstring, atype, Desc)
+    sleep(2)
     
     rName = set_snmp(comstring, mhost, "sysName", oName)
     rLocation = set_snmp(comstring, mhost, "sysLocation", oLocation)
