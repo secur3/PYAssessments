@@ -13,14 +13,19 @@ import logging
 import time
 import Queue
 from sys import exit
+import sys
 
 myloglevel = logging.INFO
 myq = Queue.Queue()
 
-domain = "example.com"
-base = "1.2.3.4"
-maxt = 32
-outfile = "/client/dnsresults.csv"
+if len(sys.argv) != 3:
+  print "Usage: dnser.py <domain> <base>"
+  exit()
+
+domain = sys.argv[1]
+base = sys.argv[2]
+maxt = 16
+outfile = "/client/"+domain+"-dnsresults.csv"
 
 logging.basicConfig(level=myloglevel, format='[%(levelname)s] %(message)s')
 
