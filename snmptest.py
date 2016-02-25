@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 resfile = '/client/snmp_validated.csv'
 
 if len(sys.argv) < 2:
-  logging.critical("You must supply the path to the csv file")
+  logging.critical("You must supply the path to the csv file [Headers:Host,String]")
   sys.exit()
 csvfl = sys.argv[1]
 
@@ -49,6 +49,7 @@ def get_snmp(communitystring, mhost):
         errorIndex and varBinds[int(errorIndex)-1] or '?'
         )
       )
+      merr = 1
     else:
       for name, value in varBinds:
         if str(name) == '1.3.6.1.2.1.1.5.0': sysName = str(value)
@@ -83,15 +84,39 @@ def set_snmp(communitystring, mhost, sysObj, nValue):
 
   return rval
 
-def writer(mhost, comstring, atype, desc, mode='a'):
+def writer(mhost, comstring, atype, desc, mode='a', ttype='rw'):
   if (mode == "w"): outfile = open(resfile, 'w')
   else: outfile = open(resfile, 'a')
-  outfile.write(mhost+","+comstring+","+atype+',"'+desc+'"\n')
+  if (ttype == "ro"):
+    outfile.write(mhost+","+comstring+',"'+desc+'"\n')
+  else:
+    outfile.write(mhost+","+comstring+","+atype+',"'+desc+'"\n')
   outfile.close()
 
 ### end functions ###
 
-writer("Host", "String", "Access", "Desc", "w")
+ansint = 0
+while (ansint == 0):
+  ans = ''
+  print ''
+  print 'Enter your choice:'
+  print "1) Read-only validation"
+  print "2) Read-Write validation"
+  ans = raw_input("Choice: ")
+
+  try:
+    ans = int(ans)
+    ansint = 1
+  except ValueError:
+    pass
+
+  if (ans < 1 or ans > 3):
+    print "Done!"
+    exit()
+if (ans == 1):
+  writer("Host", "String", "Access", "Desc", "w", "ro")
+else:
+  writer("Host", "String", "Access", "Desc", "w", "rw")
 
 with open(csvfl, 'r') as csvfile:
   hr = 1
@@ -113,25 +138,32 @@ with open(csvfl, 'r') as csvfile:
     if merr == 1: continue
     atype = "read"
     logging.info('%s[%s]::Name:%s ; Contact:%s ; Location:%s ; Description:%s' % (mhost, comstring, oName, oContact, oLocation, Desc))
-    
-    nName = set_snmp(comstring, mhost, "sysName", "ecfirst-Name")
-    if (nName == "ecfirst-Name"): changed = 1
-    nLocation = set_snmp(comstring, mhost, "sysLocation", "ecfirst-Location")
-    if (nLocation == "ecfirst-Location"): changed = 1
-    nContact = set_snmp(comstring, mhost, "sysContact", "ecfirst-contact")
-    if (nContact == "ecfirst-contact"): changed = 1
-    logging.info('Updated::Name:%s ; Contact:%s ; Location:%s' % (nName, nContact, nLocation))
-    if (changed == 1): atype = "read-write"
 
-    writer(mhost, comstring, atype, Desc)
-    sleep(2)
-    
-    rName = set_snmp(comstring, mhost, "sysName", oName)
-    rLocation = set_snmp(comstring, mhost, "sysLocation", oLocation)
-    rContact = set_snmp(comstring, mhost, "sysContact", oContact)
-    rName, rContact, rLocation, Desc, merr = get_snmp(comstring, mhost)
-    logging.info('Reset::Name:%s ; Contact:%s ; Location:%s' % (rName, rContact, rLocation))
-    print ""
+    if (ans == 2):
+      nName = set_snmp(comstring, mhost, "sysName", "ecfirst-Name")
+      if (nName == "ecfirst-Name"): changed = 1
+      nLocation = set_snmp(comstring, mhost, "sysLocation", "ecfirst-Location")
+      if (nLocation == "ecfirst-Location"): changed = 1
+      nContact = set_snmp(comstring, mhost, "sysContact", "ecfirst-contact")
+      if (nContact == "ecfirst-contact"): changed = 1
+      logging.info('Updated::Name:%s ; Contact:%s ; Location:%s' % (nName, nContact, nLocation))
+      if (changed == 1): atype = "read-write"
+
+    if (ans == 1):
+      writer(mhost, comstring, atype, Desc, 'a', 'ro')
+    else:
+      writer(mhost, comstring, atype, Desc)
+
+    if (ans == 2):
+      sleep(2)
+
+    if (ans == 2):
+      rName = set_snmp(comstring, mhost, "sysName", oName)
+      rLocation = set_snmp(comstring, mhost, "sysLocation", oLocation)
+      rContact = set_snmp(comstring, mhost, "sysContact", oContact)
+      rName, rContact, rLocation, Desc, merr = get_snmp(comstring, mhost)
+      logging.info('Reset::Name:%s ; Contact:%s ; Location:%s' % (rName, rContact, rLocation))
+      print ""
 
 print "Done!"
 

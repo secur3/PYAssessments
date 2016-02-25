@@ -1,0 +1,25 @@
+#!/bin/bash
+
+HOSTFILE="<update with full path>"
+RESULTS="<full path to write file>"
+
+for mhost in `cat $HOSTFILE`; do
+	echo $mhost >> $RESULTS
+	timeout 3 openssl s_client -connect $mhost:443 -quite -ssl2
+	if [ $? == 0 ]; then
+		echo $mhost accepts SSLv2 >> $RESULTS
+	fi
+	timeout 3 openssl s_client -connect $mhost:443 -quite -ssl3
+        if [ $? == 0 ]; then
+                echo $mhost accepts SSLv3 >> $RESULTS
+        fi
+	timeout 3 openssl s_client -connect $mhost:443 -quite -tls1
+        if [ $? == 0 ]; then
+                echo $mhost accepts TLSv1 >> $RESULTS
+        fi
+	timeout 3 openssl s_client -connect $mhost:443 -quite -tls1_1
+        if [ $? == 0 ]; then
+                echo $mhost accepts TLSv1.1 >> $RESULTS
+        fi
+done
+
