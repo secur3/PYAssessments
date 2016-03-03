@@ -4,6 +4,7 @@
 # Creates GHDB queries based on provided domain (optional)
 # Tries all, 10% or other percentage, whichever is chosen (optional)
 #
+#b.miller
 
 import urllib2
 from urllib import quote_plus, unquote_plus
