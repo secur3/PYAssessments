@@ -26,8 +26,24 @@ from StringIO import StringIO
 TEST = False # set to True to limit tries to 11 per subcategory; this should result in 99 queries at most
 myloglevel = logging.INFO # change to DEBUG for more info; WARNING for less
 
-gAPIkey = 'AIzaSyDhCgX9SdxpIPjKyyYKxNsBr3LiR9HlFkU' # Google API key
-gcseID = '010723250387003176346:3wroxjhkvl0' # Google Custom Search Engine ID
+def gk(mtype):
+  key = ""
+  filename = ""
+  if (mtype == "api"): filename = ".gapikey"
+  if (mtype == "cse"): filename = ".gcseid"
+
+  try:
+    f = open(filename)
+    key = f.readline().strip()
+    f.close()
+  except (IOError):
+    print "Unable to access key file!"
+    exit()
+
+  return key
+
+gAPIkey = gk("api") # Google API key
+gcseID = gk("cse") # Google Custom Search Engine ID
 gbaseurl = 'https://www.googleapis.com/customsearch/v1?key='+gAPIkey+'&cx='+gcseID+'&q=' # Base URL for Google CSE queries
 grefer = 'https://ecfirst.com/ghdb' # Referer for GCSE (if applicable)
 maxthreads = 8 # max number of simultanious connections to the GCSE
