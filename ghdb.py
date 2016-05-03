@@ -93,7 +93,7 @@ def gbro(url, g=1, rt=1): # Browser; takes an url and optional int (used w/ Goog
 
       logging.warning(tname+"--> Unreachable Error: " + str(err) + " | Retrying...")
       rt += 1
-      time.sleep(rt)
+      time.sleep(rt+1)
       if (g == 1): resp = gbro(url)
       else: resp = gbro(url, 0, rt)
     if ("timed out" in str(err)):
