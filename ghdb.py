@@ -47,7 +47,7 @@ gAPIkey = gk("api") # Google API key
 gcseID = gk("cse") # Google Custom Search Engine ID
 gbaseurl = 'https://www.googleapis.com/customsearch/v1?key='+gAPIkey+'&cx='+gcseID+'&q=' # Base URL for Google CSE queries
 grefer = 'https://ecfirst.com/ghdb' # Referer for GCSE (if applicable)
-maxthreads = 8 # max number of simultanious connections to the GCSE
+maxthreads = 4 # max number of simultanious connections to the GCSE
 
 outbase = '/client/' # Base dir for output files
 htmloutfile = '-ghdbqueries.html' # HTML file suffix for domain specific generated queries
@@ -73,7 +73,8 @@ def gbro(url, g=1, rt=1): # Browser; takes an url and optional int (used w/ Goog
       buf = StringIO(r.read())
       r2 = gzip.GzipFile(fileobj=buf)
       resp = r2.read()
-    else: resp = r.read()
+    else:
+      resp = r.read()
   except (urllib2.HTTPError) as err:
     if (err.code == 403):
       data = json.load(err)

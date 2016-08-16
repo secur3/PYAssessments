@@ -24,7 +24,7 @@ if len(sys.argv) != 3:
 
 domain = sys.argv[1]
 base = sys.argv[2]
-maxt = 16
+maxt = 4
 outfile = "/client/"+domain+"-dnsresults.csv"
 
 logging.basicConfig(level=myloglevel, format='[%(levelname)s] %(message)s')
