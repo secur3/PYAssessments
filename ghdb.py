@@ -413,6 +413,7 @@ def try_ghdb(dom): # Gets the percentage of queries to try; tests against GCSE
     numlinks = len(dorklist)
     trytimes = int(numlinks * trycent)
     if ((trytimes < 11) or TEST): trytimes = 11
+    if (trytimes > numlinks): trytimes = numlinks
     randlist = range(0, numlinks)
     random.shuffle(randlist)
 
