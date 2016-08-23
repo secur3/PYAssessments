@@ -1,6 +1,5 @@
 # Auto detect text files and perform LF normalization
-#* text=auto
-* text eol=lf
+* text=auto
 
 # Custom for Visual Studio
 *.cs     diff=csharp
@@ -17,3 +16,5 @@
 *.rtf	 diff=astextplain
 *.RTF	 diff=astextplain
 
+# Don't noormalize Python scripts
+*.py text eol=lf
