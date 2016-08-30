@@ -141,7 +141,7 @@ def get_cats(): # Returns a Dict of GHDB Category names and urls
   for link in resp.findAll('a'):
     if ("google-hacking-database" in link.get("href")):
       if not link.get("style"): continue
-      text = link.string
+      text = link.string.strip()
       if (text and (text.lower() == "google hacking database" or text == "")): continue
       ref = link.get("href")
       cats[text] = ref
