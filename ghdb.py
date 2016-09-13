@@ -25,6 +25,8 @@ import gzip
 from StringIO import StringIO
 
 TEST = False # set to True to limit tries to 11 per subcategory; this should result in 99 queries at most
+useprox = 0 # set to 1 to send traffic through proxy
+
 myloglevel = logging.INFO # change to DEBUG for more info; WARNING for less
 
 def gk(mtype):
@@ -65,9 +67,19 @@ def gbro(url, g=1, rt=1): # Browser; takes an url and optional int (used w/ Goog
   tname = threading.currentThread().name
   resp = ''
   try:
-    wbro = urllib2.Request(url)
-    if (g == 1): wbro.addheaders=[('User-Agent', 'Linux Firefox (ecfirst); GHDB'), ('Referer', grefer)]
-    else: wbro.addheaders=[('User-Agent', 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:35.0) Gecko/20100101 Firefox/42.0'), ('Accept-encoding', 'gzip')]
+    if (useprox == 1):
+      ctx = ssl.create_default_context()
+      ctx.check_hostname = False
+      ctx.verify_mode = ssl.CERT_NONE
+      mproxy = urllib2.ProxyHandler({'https': '192.168.187.187:8888'})
+      mopener = urllib2.build_opener(urllib2.HTTPSHandler(context=ctx), mproxy)
+      urllib2.install_opener(mopener)
+    #wbro = urllib2.Request(url)
+    #if (g == 1): wbro.addheaders=[('User-Agent', 'Linux Firefox (ecfirst); GHDB'), ('Referer', grefer)]
+    #else: wbro.addheaders=[('User-Agent', 'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:48.0) Gecko/20100101 Firefox/48.0'), ('Accept-encoding', 'gzip')]
+    if (g == 1): mheaders = { 'User-Agent': 'Linux Firefox (ecfirst); GHDB', 'Referer': grefer }
+    else: mheaders = { 'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:48.0) Gecko/20100101 Firefox/48.0', 'Accept-encoding': 'gzip'}
+    wbro = urllib2.Request(url, headers=mheaders)
     r = urllib2.urlopen(url=wbro, timeout=11.12)
     if r.info().get('Content-Encoding') == 'gzip':
       buf = StringIO(r.read())
