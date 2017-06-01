@@ -42,16 +42,22 @@ def getaddr(name):
             time.sleep(2)
             getaddr(name)
 
-list = open('/usr/share/recon-ng/data/hostnames.txt')
+def checkdns(alist):
+    for name in alist.readlines():
+        nhost = str(name.rstrip())+"."
+        hname = nhost + domain
+        logging.debug("Checking "+ hname)
+        t = threading.Thread(name=nhost, target=getaddr, args=(hname,))
+        t.daemon=True
+        t.start()
+        while int(threading.activeCount()) >= maxt+1: pass
 
-for name in list.readlines():
-    nhost = str(name.rstrip())+"."
-    hname = nhost + domain
-    logging.debug("Checking "+ hname)
-    t = threading.Thread(name=nhost, target=getaddr, args=(hname,))
-    t.daemon=True
-    t.start()
-    while int(threading.activeCount()) >= maxt+1: pass
+
+lista = open('/usr/share/recon-ng/data/hostnames.txt')
+listb = open('/client/scratch/hostnames.txt')
+
+checkdns(lista)
+checkdns(listb)
 
 try:
   f = open(outfile, 'w')
@@ -65,4 +71,3 @@ try:
 except Exception as err:
   logging.warning(str(err))
   exit()
-
