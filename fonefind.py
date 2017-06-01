@@ -23,7 +23,7 @@ import re
 import gzip
 from StringIO import StringIO
 
-useprox = 1 # set to 1 to send traffic through proxy
+useprox = 0 # set to 1 to send traffic through proxy
 
 def gk(mtype):
   key = ""
@@ -171,16 +171,16 @@ def checklinksdom(resp, num):
 
 def checklinks(resp, num, comp, nick):
   data = json.loads(resp)
-  if (int(data['searchInformation']['totalResults']) <= 1): return False
+  if (int(data['searchInformation']['totalResults']) == 0): return False
   for link in data.get("items"):
     if ((comp in link['title']) or (comp in link['snippet'])):
       print "\tPotential match for '"+num+"'!"
-      winner(num, "potential")
+      winner(num, "potential-Company")
       return True
     if (len(nick) > 2):
       if ((nick in link['title']) or (nick in link['snippet'])):
         print "\tPotential match for '"+num+"'!"
-        winner(num, "potential")
+        winner(num, "potential-Nickname")
         return True
  
   return False
