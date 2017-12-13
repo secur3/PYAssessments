@@ -36,13 +36,14 @@ def getaddr(name):
            logging.info(name+" => "+str(res))
            myq.put(name+","+str(res))
     except Exception as err:
-        logging.warning(name+" : "+str(err))
+        logging.debug(name+" : "+str(err))
         if (err.errno == -3):
             logging.warning("Retrying '"+name)
             time.sleep(2)
             getaddr(name)
 
 def checkdns(alist):
+    progcount = 0
     for name in alist.readlines():
         nhost = str(name.rstrip())+"."
         hname = nhost + domain
@@ -50,6 +51,10 @@ def checkdns(alist):
         t = threading.Thread(name=nhost, target=getaddr, args=(hname,))
         t.daemon=True
         t.start()
+        progcount += 1
+        if progcount == 20:
+          logging.info("PROGRESS: "+hname)
+          progcount = 0
         while int(threading.activeCount()) >= maxt+1: pass
 
 
@@ -58,6 +63,8 @@ listb = open('/client/scratch/hostnames.txt')
 
 checkdns(lista)
 checkdns(listb)
+
+while int(threading.activeCount()) > 1: pass
 
 try:
   f = open(outfile, 'w')

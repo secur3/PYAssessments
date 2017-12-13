@@ -1,10 +1,17 @@
 use auxiliary/scanner/mssql/mssql_login
 set USER_FILE /client/mssqlU
 set PASS_FILE /client/mssqlP
+set bruteforce_speed 4
+set blank_passwords true
+set user_as_pass true
 set VERBOSE true
-set THREADS 16
+set THREADS 8
  
 <ruby>
+self.run_single("services -s mssql -u -p 1433 -R")
+self.run_single("set RPORT 1433")
+self.run_single("run")
+
 framework.db.hosts.each do |host|
   host.services.each do |service|
     if service.name == "mssql" and service.state == "open" and service.port != 1433

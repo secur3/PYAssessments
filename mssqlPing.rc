@@ -1,0 +1,10 @@
+use auxiliary/scanner/mssql/mssql_ping
+set threads 16
+set verbose true
+
+<ruby>
+file='/client/hosts.txt'
+File.readlines(file).each do |line|
+  self.run_single("set RHOSTS #{line}")
+  self.run_single("run")
+end

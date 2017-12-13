@@ -78,7 +78,7 @@ def gbro(url, g=1, rt=1): # Browser; takes an url and optional int (used w/ Goog
     #if (g == 1): wbro.addheaders=[('User-Agent', 'Linux Firefox (ecfirst); GHDB'), ('Referer', grefer)]
     #else: wbro.addheaders=[('User-Agent', 'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:48.0) Gecko/20100101 Firefox/48.0'), ('Accept-encoding', 'gzip')]
     if (g == 1): mheaders = { 'User-Agent': 'Linux Firefox (ecfirst); GHDB', 'Referer': grefer }
-    else: mheaders = { 'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:48.0) Gecko/20100101 Firefox/48.0', 'Accept-encoding': 'gzip'}
+    else: mheaders = { 'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:52.0) Gecko/20100101 Firefox/52.0', 'Accept-encoding': 'gzip'}
     wbro = urllib2.Request(url, headers=mheaders)
     r = urllib2.urlopen(url=wbro, timeout=11.12)
     if r.info().get('Content-Encoding') == 'gzip':
