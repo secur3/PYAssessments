@@ -34,7 +34,7 @@ if len(sys.argv) > 2:
     print "Usage: dnser.py <base> [startIP] [endIP]"
     exit()
   start = int(sys.argv[2])
-  end = int(sys.argv[3])
+  end = int(sys.argv[3])+1
   if (start < 0) or (start > 254) or (end <= start) or (end > 255):
     print "Start and end must be between 1 and 255. You entered "+start+" and "+end
     print "Usage: dnser.py <base> [startIP] [endIP]"

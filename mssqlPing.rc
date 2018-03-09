@@ -8,3 +8,4 @@ File.readlines(file).each do |line|
   self.run_single("set RHOSTS #{line}")
   self.run_single("run")
 end
+</ruby>
