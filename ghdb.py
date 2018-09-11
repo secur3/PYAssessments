@@ -151,6 +151,7 @@ def get_cats(): # Returns a Dict of GHDB Category names and urls
   resp = gbro(baseurl, 0)
   resp = BeautifulSoup(resp)
   for link in resp.findAll('a'):
+    if not (link.get('href')): continue
     if ("google-hacking-database" in link.get("href")):
       if not link.get("style"): continue
       text = link.string.strip()
@@ -164,6 +165,7 @@ def get_dorks(resp): # receives a BeautifulSoup'd response for page with dorks; 
   tname = threading.currentThread().name
   dorks = []
   for link in resp.findAll('a'):
+    if not (link.get('href')): continue
     if ('/ghdb/' in link.get('href')):
       if not (link.string): continue
       logging.info(tname+"--> Found dork: "+str(BeautifulSoup(link.string, convertEntities=BeautifulSoup.HTML_ENTITIES)).rstrip())
@@ -188,6 +190,7 @@ def get_dorks(resp): # receives a BeautifulSoup'd response for page with dorks; 
       if (skip == 1): continue
       fd = 0
       for dork in resp2.findAll('a'):
+        if not (dork.get('href')): continue
         if ('google.com/search' in dork.get('href')):
           gparms = urlparse.urlparse(dork.get('href'))
           if ('q' in urlparse.parse_qs(gparms.query)):
