@@ -16,8 +16,8 @@ puts $ofileid "$mhost"
 spawn smbclient -q -U% \\\\$mhost -c 'put /client/ecfirst.txt'
 
 expect {
-	timeout {puts $ofileid "\tFailed to connect"; continue}
-	eof { puts $ofileid "\tFailed to put"; continue}
+	timeout {puts $ofileid "\tFailed to connect"; wait; continue}
+	eof { puts $ofileid "\tFailed to put"; wait; continue}
 	"putting file ecfirst.txt *"
 }
 

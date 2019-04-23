@@ -16,13 +16,14 @@ puts $ofileid "$mhost"
 spawn smbclient -q -U% \\\\$mhost
 
 expect {
-	timeout {puts $ofileid "\tFailed to connect"; continue}
-	eof { puts $ofileid "\tFailed to connect"; continue}
+	timeout {puts $ofileid "\tFailed to connect - timeout"; wait; continue}
+	eof { puts $ofileid "\tFailed to connect"; wait; continue}
 	"smb: *"
 }
 
 send_user "\n!!! Connected to $mhost"
 puts $ofileid "\tConnected"
+send "exit\r"
 }
 close $ofileid
 close $ifileid
