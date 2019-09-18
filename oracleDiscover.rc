@@ -33,8 +33,10 @@ framework.db.notes.each do |note|
   if note.ntype == "oracle.sid"
     sid = note.data
     host = note.host.address
+    port = note.service.port
     self.run_single("set SID #{sid}")
     self.run_single("set RHOSTS #{host}")
+    self.run_single("set RPORTS #{port}")
     self.run_single("run")
   end
 end
