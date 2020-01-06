@@ -1,0 +1,15 @@
+use auxiliary/admin/smb/list_directory
+set SMBDomain fmashley.com
+set SMBUser guest
+set SMBPass ""
+set VERBOSE False
+
+<ruby>
+require 'csv'
+file='/client/shares.csv'
+CSV.read(file).each do |line|
+  self.run_single("set RHOSTS #{line[0]}")
+  self.run_single("set SMBSHARE #{line[1]}")
+  self.run_single("run")
+end
+</ruby>
