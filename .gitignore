@@ -8,3 +8,6 @@ ghdb.bk/
 .gapikey
 .gcseid
 .DS_Store
+checkcopy.sh
+wificopy.sh
+physcopy.sh
