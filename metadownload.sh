@@ -1,6 +1,6 @@
 #!/bin/bash
 # takes a list of file URLs and creates the similar folder structure locally and downloads those files
-# 
+# make sure your provided path has a trailing /
 
 SPATH=$1
 
