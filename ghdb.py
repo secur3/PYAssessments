@@ -6,9 +6,17 @@
 #
 #b.miller
 
-import urllib2
-from urllib import quote_plus, unquote_plus
-from BeautifulSoup import BeautifulSoup
+from __future__ import division
+from __future__ import print_function
+from future import standard_library
+standard_library.install_aliases()
+from builtins import input
+from builtins import str
+from builtins import range
+from past.utils import old_div
+import urllib.request, urllib.error, urllib.parse
+from urllib.parse import quote_plus, unquote_plus
+from bs4 import BeautifulSoup
 import json
 import os
 from subprocess import check_output
@@ -17,12 +25,12 @@ from datetime import date
 import random
 import threading
 import logging
-import Queue
-import urlparse
+import queue
+import urllib.parse
 import ssl
 import re
 import gzip
-from StringIO import StringIO
+from io import StringIO, BytesIO
 
 TEST = False # set to True to limit tries to 11 per subcategory; this should result in 99 queries at most
 useprox = 0 # set to 1 to send traffic through proxy
@@ -40,7 +48,7 @@ def gk(mtype):
     key = f.readline().strip()
     f.close()
   except (IOError):
-    print "Unable to access key file!"
+    print("Unable to access key file!")
     exit()
 
   return key
@@ -60,7 +68,7 @@ sleepsec = 1 # used for delays
 cats = {} # Globally used
 mycats = ["Footholds", "Vulnerable Files", "Vulnerable Servers", "Files containing passwords", "Files containing usernames", "Files containing juicy info", "Network or vulnerability data", "Advisories and Vulnerabilities", "Pages containing login portals", "Error Messages", "Various Online Devices"] # categories that we will try queries from when applicable
 
-myq = Queue.Queue()
+myq = queue.Queue()
 logging.basicConfig(level=myloglevel, format='[%(levelname)s] %(message)s')
 
 def gbro(url, g=1, rt=1): # Browser; takes an url and optional int (used w/ Google CSE); returns mechanize response object
@@ -71,23 +79,23 @@ def gbro(url, g=1, rt=1): # Browser; takes an url and optional int (used w/ Goog
       ctx = ssl.create_default_context()
       ctx.check_hostname = False
       ctx.verify_mode = ssl.CERT_NONE
-      mproxy = urllib2.ProxyHandler({'https': '192.168.187.187:8888'})
-      mopener = urllib2.build_opener(urllib2.HTTPSHandler(context=ctx), mproxy)
-      urllib2.install_opener(mopener)
+      mproxy = urllib.request.ProxyHandler({'https': '192.168.187.187:8888'})
+      mopener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ctx), mproxy)
+      urllib.request.install_opener(mopener)
     #wbro = urllib2.Request(url)
     #if (g == 1): wbro.addheaders=[('User-Agent', 'Linux Firefox (ecfirst); GHDB'), ('Referer', grefer)]
     #else: wbro.addheaders=[('User-Agent', 'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:48.0) Gecko/20100101 Firefox/48.0'), ('Accept-encoding', 'gzip')]
     if (g == 1): mheaders = { 'User-Agent': 'Linux Firefox (ecfirst); GHDB', 'Referer': grefer }
     else: mheaders = { 'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:52.0) Gecko/20100101 Firefox/52.0', 'Accept-encoding': 'gzip'}
-    wbro = urllib2.Request(url, headers=mheaders)
-    r = urllib2.urlopen(url=wbro, timeout=11.12)
+    wbro = urllib.request.Request(url, headers=mheaders)
+    r = urllib.request.urlopen(url=wbro, timeout=11.12)
     if r.info().get('Content-Encoding') == 'gzip':
-      buf = StringIO(r.read())
+      buf = BytesIO(r.read())
       r2 = gzip.GzipFile(fileobj=buf)
       resp = r2.read()
     else:
       resp = r.read()
-  except (urllib2.HTTPError) as err:
+  except (urllib.error.HTTPError) as err:
     if (err.code == 403):
       data = json.load(err)
       if (data['error']['errors'][0]['reason'] == "dailyLimitExceeded"):
@@ -95,9 +103,9 @@ def gbro(url, g=1, rt=1): # Browser; takes an url and optional int (used w/ Goog
         exit()
       else:
         logging.warning("Google error : "+ str(data['error']['errors'][0]['reason']))
-        ans = raw_input("Press Enter to try again.")
+        ans = input("Press Enter to try again.")
         resp = gbro(url)
-  except (urllib2.URLError, ssl.SSLError) as err:
+  except (urllib.error.URLError, ssl.SSLError) as err:
     if ("unreachable" in str(err)):
       if (rt > 10):
         logging.warning(tname+"--> giving up...")
@@ -149,7 +157,7 @@ def get_cats(): # Returns a Dict of GHDB Category names and urls
   baseurl = 'https://www.exploit-db.com/google-hacking-database/'
 
   resp = gbro(baseurl, 0)
-  resp = BeautifulSoup(resp)
+  resp = BeautifulSoup(resp, 'html.parser')
   for link in resp.findAll('a'):
     if not (link.get('href')): continue
     if ("google-hacking-database" in link.get("href")):
@@ -158,7 +166,7 @@ def get_cats(): # Returns a Dict of GHDB Category names and urls
       if (text and (text.lower() == "google hacking database" or text == "")): continue
       ref = link.get("href")
       cats[text] = ref
-
+  logging.debug("cat len: "+str(len(cats)))
   return True
 
 def get_dorks(resp): # receives a BeautifulSoup'd response for page with dorks; returns a List of dork urls 
@@ -178,7 +186,7 @@ def get_dorks(resp): # receives a BeautifulSoup'd response for page with dorks; 
             skip = 1
             break
 
-          resp2 = BeautifulSoup(resp1)
+          resp2 = BeautifulSoup(resp1, 'html.parser')
         except Exception as err:
           logging.warning('Dorks Error: ' + str(err))
           if ("timed out" in str(err)): continue
@@ -192,9 +200,9 @@ def get_dorks(resp): # receives a BeautifulSoup'd response for page with dorks; 
       for dork in resp2.findAll('a'):
         if not (dork.get('href')): continue
         if ('google.com/search' in dork.get('href')):
-          gparms = urlparse.urlparse(dork.get('href'))
-          if ('q' in urlparse.parse_qs(gparms.query)):
-            qstring = (urlparse.parse_qs(gparms.query)['q'][0]).encode("ascii", "ignore")
+          gparms = urllib.parse.urlparse(dork.get('href'))
+          if ('q' in urllib.parse.parse_qs(gparms.query)):
+            qstring = (urllib.parse.parse_qs(gparms.query)['q'][0]).encode("ascii", "ignore")
             logging.debug(str(BeautifulSoup(qstring, convertEntities=BeautifulSoup.HTML_ENTITIES)).rstrip())
             dorks.append(str(BeautifulSoup(qstring, convertEntities=BeautifulSoup.HTML_ENTITIES)).rstrip())
             #dorks.append(str(BeautifulSoup(dork.string, convertEntities=BeautifulSoup.HTML_ENTITIES)).rstrip())
@@ -231,14 +239,14 @@ def startchk(): # Start-up routine; creates required dir; checks for last run ti
     ctime = time.time()
 
     if ((ctime - btime) <= 15552000):
-      ans = raw_input("\nLooks like the dorks were collected less than 6 months ago. Do you want to redownload them? [y,N] ")
+      ans = input("\nLooks like the dorks were collected less than 6 months ago. Do you want to redownload them? [y,N] ")
       if ('y' in ans.lower()): get_ghdb()
 
     else:
-      ans = raw_input("\nLooks like the dorks haven't been collected for over 6 months. Do you want to redownload them? [Y,n]")
+      ans = input("\nLooks like the dorks haven't been collected for over 6 months. Do you want to redownload them? [Y,n]")
       if not ('n' in ans.lower()): get_ghdb()
 
-  domain = str(raw_input("Enter the domain to use\n(no validity checks performed so double check\nbefore you hit enter so that queries aren't wasted): "))
+  domain = str(input("Enter the domain to use\n(no validity checks performed so double check\nbefore you hit enter so that queries aren't wasted): "))
   os.chdir('..')
 
   return domain
@@ -257,7 +265,7 @@ def get_ghdb(): # Gets the GHDB; pulls Categories and urls; pulls dorks and urls
 
   get_cats()
 
-  for cat, meow in cats.iteritems():
+  for cat, meow in cats.items():
     ct = threading.Thread(name=str(cat), target=main_cat, args=(cat, meow))
     ct.daemon=True
     ct.start()
@@ -298,7 +306,7 @@ def main_cat(cat, meow):
     page = gbro(meow, 0)
     while nonxt == 0:
       logging.debug('Page '+str(pg))
-      resp = BeautifulSoup(page)
+      resp = BeautifulSoup(page, 'html.parser')
       thedorks = get_dorks(resp)
       for dork in thedorks:
         dorks.append(dork)
@@ -339,16 +347,18 @@ def gen_ghdb(dom): # Creates an HTML file containing every GHDB dork customized 
 
     if (cats == {}): get_cats()
     catcnt = 1
-    for cat, meow in cats.iteritems():
+    logging.debug("cat len: "+str(len(cats)))
+    for cat, meow in cats.items():
+      logging.debug(""+cat+" : "+meow)
       file.write("<p><a href='#"+str(catcnt)+"'>"+str(catcnt)+".\t"+cat+"</a></p>\n")
       catcnt += 1
 
     file.write("<br><br>\n")
 
     logging.info("Generating file '"+savepath+"'")
-    
+
     catcnt = 1
-    for cat, meow in cats.iteritems():
+    for cat, meow in cats.items():
       if not (os.path.isfile("./ghdb/"+cat+".base")):
         logging.critical("Can't find './ghdb/"+cat+".base'! You may need to re-run or check your run location")
         exit()
@@ -391,7 +401,7 @@ def try_ghdb(dom): # Gets the percentage of queries to try; tests against GCSE
   if (depth or TEST): thecats = mycats
   else:
     if (cats == {}): get_cats()
-    thecats = cats.keys()
+    thecats = list(cats.keys())
 
   try:
     file = open(savepath, 'w')
@@ -429,7 +439,7 @@ def try_ghdb(dom): # Gets the percentage of queries to try; tests against GCSE
     trytimes = int(numlinks * trycent)
     if ((trytimes < 11) or TEST): trytimes = 11
     if (trytimes > numlinks): trytimes = numlinks
-    randlist = range(0, numlinks)
+    randlist = list(range(0, numlinks))
     random.shuffle(randlist)
 
     logging.info("Trying "+str(trytimes)+" queries from '"+cat+"'...")
@@ -496,13 +506,13 @@ def qwatch(savepath, myevent):
 def try_check(): # Gets the percentage; moved here to allow an easy redo
   ans = 0
   while ans == 0:
-    ans = raw_input("Enter the percentage of total tries to test as an integer(i.e. 23): ")
+    ans = input("Enter the percentage of total tries to test as an integer(i.e. 23): ")
     try:
       ans = int(ans)
     except ValueError:
       ans = 0
     if (ans >= 100):
-      qans = raw_input("Are you sure you want to try EVERY query? This could result in over 3300 queries against your Google CSE (y, N): ")
+      qans = input("Are you sure you want to try EVERY query? This could result in over 3300 queries against your Google CSE (y, N): ")
       if not ("y" in qans.lower()): ans = 0
   
   return ans
@@ -520,25 +530,25 @@ def try_cents(): #Determines the percent of tries for testing queries; returns p
     logging.info("Using '"+str(ans)+"' as the percentage")
     totalt = count_queries(ans)
     logging.warning("This will result in @ "+str(totalt)+" queries against your Google CSE.")
-    kans = raw_input("Keep the percentage as "+str(ans)+"%? (Y, n)")
+    kans = input("Keep the percentage as "+str(ans)+"%? (Y, n)")
     if ('n' in kans.lower()): ans = 0
 
-  mycent = (ans+.00)/100
+  mycent = old_div((ans+.00),100)
 
   if (ans == 100):
-    sans = raw_input("Do you want to test queries from all categories (3300+ queries)? (y, N): ")
+    sans = input("Do you want to test queries from all categories (3300+ queries)? (y, N): ")
     if ('y' in sans.lower()): limitq = False # Use all cats
 
   return mycent, limitq
 
 def count_queries(cent): # Counts the number of queries based on percentage
   global mycats
-  cent = (cent+.00)/100
+  cent = old_div((cent+.00),100)
   tots = 0
 
   for names in mycats:
     thepath = "./ghdb/"+names+".base"
-    fsz = check_output(['wc', '-l', thepath])
+    fsz = (check_output(['wc', '-l', thepath])).decode()
     fsz = int(fsz.split(" ")[0])
     fsz = int(fsz * cent)
     if (fsz  < 10): fsz = 10
@@ -559,19 +569,19 @@ if __name__ == "__main__":
   domain = startchk()
 
   if (domain == ""):
-    print "Done!"
+    print("Done!")
     exit()
 
   ansint = 0
 
   while (ansint == 0):
     ans = ""
-    print ""
-    print "Enter your choice:"
-    print "1: Generate queries only"
-    print "2: Test queries only"
-    print "3: Generate and test queries"
-    ans = raw_input("Choice: ")
+    print("")
+    print("Enter your choice:")
+    print("1: Generate queries only")
+    print("2: Test queries only")
+    print("3: Generate and test queries")
+    ans = input("Choice: ")
     try:
       ans = int(ans)
       ansint = 1
@@ -579,7 +589,7 @@ if __name__ == "__main__":
       pass
 
   if (ans < 1 or ans > 3):
-    print "Done!"
+    print("Done!")
     exit()
 
   if (ans == 1): gen_ghdb(domain)
@@ -588,5 +598,5 @@ if __name__ == "__main__":
     gen_ghdb(domain)
     try_ghdb(domain)
 
-  print ""
-  print "Done!"
+  print("")
+  print("Done!")

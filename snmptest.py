@@ -6,6 +6,10 @@
 #
 # Requires pysnmp to be installed
 
+from __future__ import print_function
+from builtins import input
+from builtins import next
+from builtins import str
 import csv
 import logging
 from pysnmp.hlapi import *
@@ -98,11 +102,11 @@ def writer(mhost, comstring, atype, desc, mode='a', ttype='rw'):
 ansint = 0
 while (ansint == 0):
   ans = ''
-  print ''
-  print 'Enter your choice:'
-  print "1) Read-only validation"
-  print "2) Read-Write validation"
-  ans = raw_input("Choice: ")
+  print('')
+  print('Enter your choice:')
+  print("1) Read-only validation")
+  print("2) Read-Write validation")
+  ans = input("Choice: ")
 
   try:
     ans = int(ans)
@@ -111,7 +115,7 @@ while (ansint == 0):
     pass
 
   if (ans < 1 or ans > 3):
-    print "Done!"
+    print("Done!")
     exit()
 if (ans == 1):
   writer("Host", "String", "Access", "Desc", "w", "ro")
@@ -163,7 +167,7 @@ with open(csvfl, 'r') as csvfile:
       rContact = set_snmp(comstring, mhost, "sysContact", oContact)
       rName, rContact, rLocation, Desc, merr = get_snmp(comstring, mhost)
       logging.info('Reset::Name:%s ; Contact:%s ; Location:%s' % (rName, rContact, rLocation))
-      print ""
+      print("")
 
-print "Done!"
+print("Done!")
 

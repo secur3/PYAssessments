@@ -7,19 +7,23 @@
 # set 'maxt' to the number of concurrent threads
 # requires "Recong-ng" installed in the default Kali location (we utilize it's hostname list)
 
+from __future__ import print_function
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
 import socket
 import threading
 import logging
 import time
-import Queue
+import queue
 from sys import exit
 import sys
 
 myloglevel = logging.INFO
-myq = Queue.Queue()
+myq = queue.Queue()
 
 if len(sys.argv) != 2:
-  print "Usage: dnser.py <list>"
+  print("Usage: dnser.py <list>")
   exit()
 
 domain = sys.argv[1]

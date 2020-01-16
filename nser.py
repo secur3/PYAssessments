@@ -5,19 +5,24 @@
 # set 'maxt' to the number of concurrent threads
 # requires "Recong-ng" installed in the default Kali location (we utilize it's hostname list)
 
+from __future__ import print_function
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import range
 import socket
 import threading
 import logging
 import time
-import Queue
+import queue
 from sys import exit
 import sys
 
 myloglevel = logging.INFO
-myq = Queue.Queue()
+myq = queue.Queue()
 
 if len(sys.argv) < 2:
-  print "Usage: dnser.py <base> [startIP] [endIP]"
+  print("Usage: dnser.py <base> [startIP] [endIP]")
   exit()
 
 base = sys.argv[1]
@@ -30,14 +35,14 @@ end = 255
 
 if len(sys.argv) > 2:
   if len(sys.argv) != 4:
-    print "You must supply both a start and end number, between 1 and 255"
-    print "Usage: dnser.py <base> [startIP] [endIP]"
+    print("You must supply both a start and end number, between 1 and 255")
+    print("Usage: dnser.py <base> [startIP] [endIP]")
     exit()
   start = int(sys.argv[2])
   end = int(sys.argv[3])+1
   if (start < 0) or (start > 254) or (end <= start) or (end > 255):
-    print "Start and end must be between 1 and 255. You entered "+start+" and "+end
-    print "Usage: dnser.py <base> [startIP] [endIP]"
+    print("Start and end must be between 1 and 255. You entered "+start+" and "+end)
+    print("Usage: dnser.py <base> [startIP] [endIP]")
     exit() 
 
 def getaddr(mip):
