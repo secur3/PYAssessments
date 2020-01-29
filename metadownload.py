@@ -1,0 +1,113 @@
+#!/usr/bin/python
+# provided a local save path, a target domain name and a Google search URL
+# grabs the links for the target domain from the search results
+# downloads those files and saves them in the same folder structure as the URL
+
+import urllib.request
+from urllib.parse import urlparse
+from bs4 import BeautifulSoup
+from sys import argv
+from pathlib import Path
+import os
+import shutil
+
+if len(argv) < 3:
+  print("You must supply the save path, domain name and {optional} Google URL")
+  print("\tex: metadownload.py '[save path]' [domain] '{Google URL}'")
+  print("Wrap the 'save path' and 'Google URL' in single quotes for safety")
+  print("")
+  exit()
+
+savepath=argv[1]
+mydom=argv[2]
+mylinks = []
+
+def argcheck (path, dom, aurl): #basic check that the args passed in are what we need
+  if not os.path.isdir(path):
+    print("")
+    print("The supplied path ('{}') does not exist or is not a directory".format(path))
+    exit()
+  if not aurl.startswith("http"):
+    print ("")
+    print("The supplied Google URL ('{}') does not look like a web URL (not starting with 'http' or 'https')".format(aurl))
+    exit()
+  if not "google.com/search" in aurl:
+    print("")
+    print("The supplied Google URL ('{}') does not look like a Google Search URL".format(aurl))
+    exit()
+
+def bro (aurl, savepath=""): #takes a URL and returns a BeautifulSoup object of the response or saves the file if savepath is provided 
+  req = urllib.request.Request(aurl, data=None, headers={'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36'})
+
+  if not savepath:
+    with urllib.request.urlopen(req) as resp:
+      response = BeautifulSoup(resp.read(), 'html.parser')
+  else:
+    filename, tpath, mdom = getFilename (aurl)
+    newpath = mdom + "/" + tpath
+    if not savepath.endswith('/'): savepath = savepath +"/"
+    newsavepath = savepath + newpath
+    if not newsavepath.endswith('/'): newsavepath = newsavepath + "/"
+    outfile = newsavepath + filename
+    Path(newsavepath).mkdir(parents=True, exist_ok=True)
+    print("Downloading '{}' :: from '{}'".format(filename, aurl))
+    with urllib.request.urlopen(req) as resp, open(outfile, 'wb') as out_file:
+      try:
+        shutil.copyfileobj(resp, out_file)
+        response = True
+      except:
+        response = False
+
+  return response
+
+def gscrape (resp, dom): #takes a BeautifulSoup object & domain and pulls out the links to the domain
+  thelinks = []
+  for divs in resp.find_all('div'):
+    for links in divs.find_all('a'):
+      if links.get('href'):
+        link = links.get('href')
+        if "webcache" in link: continue
+        if "search?q" in link: continue
+        if "google.com" in link: continue
+        if dom in link:
+          if not link in thelinks: thelinks.append(link)
+
+  return thelinks
+
+def getFilename (path): #takes the URL path and returns the filename and save path
+  parsed = urlparse(path)
+  filename = os.path.basename(parsed.path)
+  newpath = os.path.dirname(parsed.path)
+  domain = parsed.netloc
+  return filename, newpath, domain
+
+### end functions ###
+
+if len(argv) >= 4:
+  URL = argv[3] #use the URL passed via command line, if there
+else:
+  URL = input("Enter the Google search URL: ") 
+
+argcheck(savepath, mydom, URL) #check the passed args are what we need
+
+print("Getting Google search page...")
+
+gres = bro(URL) #get the Google search page passed in
+
+mylinks = gscrape(gres, mydom) #get the links to the client domain passed in
+
+if not mylinks:
+  print("")
+  print("No links found! Maybe Google blocked access or there were no links on the page for '{}'".format(mydom))
+  print("\tYou could try the link in a browser to confirm, and try again shortly")
+  exit()
+
+print("Downloading files for '{}'...".format(mydom))
+
+for link in mylinks: #step through the links and download the file
+  resp = bro(link, savepath) #resp is True if no error saving
+  if not resp:
+    print("\t! Unable to download '{}'".format(link))
+
+print ("")
+print ("Done")
