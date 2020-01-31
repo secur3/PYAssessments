@@ -194,13 +194,14 @@ def get_dorks(resp): # receives a json response for page with dorks; returns a L
   tname = threading.currentThread().name
   dorks = []
   base = 'https://www.exploit-db.com/ghdb/'
+  count = 0
 
   for link in resp['data']:
     id = link['id']
     if id:
       title = link['url_title'].strip('</a>')
-      if args.debug: logging.debug(tname+"--> Found dork: {}".format(title))
-      else: logging.info(tname+"--> Found dork")
+      if args.debug: logging.debug("{}:{}--> Found dork: {}".format(count, tname, title))
+      else: logging.info("{}:{}--> Found dork".format(count, tname))
       skip = 0
       url = base + id
       while True:
@@ -229,6 +230,7 @@ def get_dorks(resp): # receives a json response for page with dorks; returns a L
           dorks.append(dork)
         else: logging.debug('! Bad Dork Page !')
       else: logging.debug('! Bad Dork Page !')
+      count += 1
       time.sleep(sleepsec) # added in a delay between dorks as exploit-db began blocking our IP during test runs; plus its the nice thing to do
 
   return dorks
