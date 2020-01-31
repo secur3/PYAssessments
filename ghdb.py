@@ -31,11 +31,29 @@ import ssl
 import re
 import gzip
 from io import StringIO, BytesIO
+import argparse
+import math
 
-TEST = False # set to True to limit tries to 11 per subcategory; this should result in 99 queries at most
-useprox = 0 # set to 1 to send traffic through proxy
+parser = argparse.ArgumentParser()
+parser.add_argument("--test", help="Only test 11 items per subcategory", action="store_true")
+parser.add_argument("--debug", help="Turn on debugging", action="store_true")
+parser.add_argument("--proxy", help="Use to provide a proxy to connect through (e.g. --proxy '192.168.187.187:8888')")
+args = parser.parse_args()
 
-myloglevel = logging.INFO # change to DEBUG for more info; WARNING for less
+if args.test:
+  TEST = True
+else:
+  TEST = False # set to True to limit tries to 11 per subcategory; this should result in 99 queries at most
+
+if args.proxy:
+  useprox = args.proxy
+else:
+  useprox = False # set to a proxy value to send traffic through proxy
+
+if args.debug:
+  myloglevel = logging.DEBUG
+else:
+  myloglevel = logging.INFO # change to DEBUG for more info; WARNING for less
 
 def gk(mtype):
   key = ""
@@ -57,6 +75,8 @@ gAPIkey = gk("api") # Google API key
 gcseID = gk("cse") # Google Custom Search Engine ID
 gbaseurl = 'https://www.googleapis.com/customsearch/v1?key='+gAPIkey+'&cx='+gcseID+'&q=' # Base URL for Google CSE queries
 grefer = 'https://ecfirst.com/ghdb' # Referer for GCSE (if applicable)
+useragent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36'
+
 maxthreads = 4 # max number of simultanious connections to the GCSE
 
 outbase = '/client/' # Base dir for output files
@@ -71,22 +91,22 @@ mycats = ["Footholds", "Vulnerable Files", "Vulnerable Servers", "Files containi
 myq = queue.Queue()
 logging.basicConfig(level=myloglevel, format='[%(levelname)s] %(message)s')
 
-def gbro(url, g=1, rt=1): # Browser; takes an url and optional int (used w/ Google CSE); returns mechanize response object
+def gbro(url, g=1, rt=1): # Browser; takes an url and optional int (used w/ Google CSE); returns mechanize response object  
   tname = threading.currentThread().name
   resp = ''
   try:
-    if (useprox == 1):
+    if (useprox):
       ctx = ssl.create_default_context()
       ctx.check_hostname = False
       ctx.verify_mode = ssl.CERT_NONE
-      mproxy = urllib.request.ProxyHandler({'https': '192.168.187.187:8888'})
+      mproxy = urllib.request.ProxyHandler({'https': useprox})
       mopener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ctx), mproxy)
       urllib.request.install_opener(mopener)
     #wbro = urllib2.Request(url)
     #if (g == 1): wbro.addheaders=[('User-Agent', 'Linux Firefox (ecfirst); GHDB'), ('Referer', grefer)]
     #else: wbro.addheaders=[('User-Agent', 'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:48.0) Gecko/20100101 Firefox/48.0'), ('Accept-encoding', 'gzip')]
-    if (g == 1): mheaders = { 'User-Agent': 'Linux Firefox (ecfirst); GHDB', 'Referer': grefer }
-    else: mheaders = { 'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:52.0) Gecko/20100101 Firefox/52.0', 'Accept-encoding': 'gzip'}
+    if (g == 1): mheaders = { 'User-Agent': useragent, 'Referer': grefer }
+    else: mheaders = {'User-Agent': useragent, 'Referer': url, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest'}
     wbro = urllib.request.Request(url, headers=mheaders)
     r = urllib.request.urlopen(url=wbro, timeout=11.12)
     if r.info().get('Content-Encoding') == 'gzip':
@@ -151,38 +171,44 @@ def gbro(url, g=1, rt=1): # Browser; takes an url and optional int (used w/ Goog
     else: resp = gbro(url, 0, 10)
   return resp
 
-def get_cats(): # Returns a Dict of GHDB Category names and urls
+def get_cats(): # Returns a Dict of GHDB Category names and IDs
   global cats
   logging.info("Getting categories...")
   baseurl = 'https://www.exploit-db.com/google-hacking-database/'
 
-  resp = gbro(baseurl, 0)
+  resp = gbro(baseurl, 1)
   resp = BeautifulSoup(resp, 'html.parser')
-  for link in resp.findAll('a'):
-    if not (link.get('href')): continue
-    if ("google-hacking-database" in link.get("href")):
-      if not link.get("style"): continue
-      text = link.string.strip()
-      if (text and (text.lower() == "google hacking database" or text == "")): continue
-      ref = link.get("href")
-      cats[text] = ref
+
+  catselect = resp.find(id="categorySelect")
+  for option in catselect.select('option'):
+    if option.text:
+      catid = option['value']
+      text = option.text
+      text = text.strip(' \n')
+      cats[text] = catid
+
   logging.debug("cat len: "+str(len(cats)))
   return True
 
-def get_dorks(resp): # receives a BeautifulSoup'd response for page with dorks; returns a List of dork urls 
+def get_dorks(resp): # receives a json response for page with dorks; returns a List of dork urls 
   tname = threading.currentThread().name
   dorks = []
-  for link in resp.findAll('a'):
-    if not (link.get('href')): continue
-    if ('/ghdb/' in link.get('href')):
-      if not (link.string): continue
-      logging.info(tname+"--> Found dork: "+str(BeautifulSoup(link.string, convertEntities=BeautifulSoup.HTML_ENTITIES)).rstrip())
+  base = 'https://www.exploit-db.com/ghdb/'
+  count = 0
+
+  for link in resp['data']:
+    id = link['id']
+    if id:
+      title = link['url_title'].strip('</a>')
+      if args.debug: logging.debug("{}:{}--> Found dork: {}".format(count, tname, title))
+      else: logging.info("{}:{}--> Found dork".format(count, tname))
       skip = 0
+      url = base + id
       while True:
         try:
-          resp1 = gbro(link.get("href"), 0)
+          resp1 = gbro(url, 0)
           if (resp1 == "BAD"):
-            logging.warning(tname+"--> Unable to get dork: "+str(BeautifulSoup(link.string, convertEntities=BeautifulSoup.HTML_ENTITIES)).rstrip())
+            logging.warning(tname+"--> Unable to get dork at: {}".format(url))
             skip = 1
             break
 
@@ -196,20 +222,17 @@ def get_dorks(resp): # receives a BeautifulSoup'd response for page with dorks; 
         break
 
       if (skip == 1): continue
-      fd = 0
-      for dork in resp2.findAll('a'):
-        if not (dork.get('href')): continue
-        if ('google.com/search' in dork.get('href')):
-          gparms = urllib.parse.urlparse(dork.get('href'))
-          if ('q' in urllib.parse.parse_qs(gparms.query)):
-            qstring = (urllib.parse.parse_qs(gparms.query)['q'][0]).encode("ascii", "ignore")
-            logging.debug(str(BeautifulSoup(qstring, convertEntities=BeautifulSoup.HTML_ENTITIES)).rstrip())
-            dorks.append(str(BeautifulSoup(qstring, convertEntities=BeautifulSoup.HTML_ENTITIES)).rstrip())
-            #dorks.append(str(BeautifulSoup(dork.string, convertEntities=BeautifulSoup.HTML_ENTITIES)).rstrip())
-            fd = 1
-            break
-      if (fd == 0): logging.debug('! Bad Dork Page !')
+      dork = resp2.find("h1", {"class": "card-title"})
+      if dork:
+        dork = dork.text.strip(' \n')
+        if dork:
+          logging.debug(dork)
+          dorks.append(dork)
+        else: logging.debug('! Bad Dork Page !')
+      else: logging.debug('! Bad Dork Page !')
+      count += 1
       time.sleep(sleepsec) # added in a delay between dorks as exploit-db began blocking our IP during test runs; plus its the nice thing to do
+
   return dorks
 
 def startchk(): # Start-up routine; creates required dir; checks for last run time; gathers domain name
@@ -300,25 +323,25 @@ def main_cat(cat, meow):
         exit()
 
     dorks = []
-    nonxt = 0
-    pg = 1
+    start = 0
+    pagecount = 0
+    totalpages = 1
 
-    page = gbro(meow, 0)
-    while nonxt == 0:
-      logging.debug('Page '+str(pg))
-      resp = BeautifulSoup(page, 'html.parser')
-      thedorks = get_dorks(resp)
+    while pagecount <= totalpages:
+      caturl = "https://www.exploit-db.com/google-hacking-database?category={}&start={}&length=120".format(meow, start)
+      page = gbro(caturl, 0)
+      resp = BeautifulSoup(page, 'html.parser') #
+      data = json.loads(resp.text)
+      totaldorks = data['recordsTotal']
+      totalpages = math.ceil(totaldorks/120)
+
+      thedorks = get_dorks(data) #update
       for dork in thedorks:
         dorks.append(dork)
-      pgend = 0
-      for links in resp.findAll('a'):
-        if ('next' in str(links.string)):
-          page = gbro(links.get('href'), 0)
-          pg += 1
-          pgend = 1
-          break
-      if (pgend == 0):
-        nonxt = 1
+
+      if pagecount <= totalpages:
+        pagecount +=1
+        start += 121
 
     try:
       file = open(cat+'.base', 'w')
