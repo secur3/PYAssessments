@@ -186,11 +186,10 @@ def get_cats(): # Returns a Dict of GHDB Category names and IDs
   logging.debug("cat len: "+str(len(cats)))
   return True
 
-def get_dorks(resp): # receives a json response for page with dorks; returns a List of dork urls 
+def get_dorks(resp, count=0): # receives a json response for page with dorks; returns a List of dork urls 
   tname = threading.currentThread().name
   dorks = []
   base = 'https://www.exploit-db.com/ghdb/'
-  count = 0
 
   for link in resp['data']:
     id = link['id']
@@ -229,7 +228,7 @@ def get_dorks(resp): # receives a json response for page with dorks; returns a L
       count += 1
       time.sleep(sleepsec) # added in a delay between dorks as exploit-db began blocking our IP during test runs; plus its the nice thing to do
 
-  return dorks
+  return dorks, count
 
 def startchk(): # Start-up routine; creates required dir; checks for last run time; gathers domain name
   if not (os.path.isdir('./ghdb')):
@@ -322,6 +321,7 @@ def main_cat(cat, meow):
     start = 0
     pagecount = 0
     totalpages = 1
+    count = 0
 
     while pagecount <= totalpages:
       caturl = "https://www.exploit-db.com/google-hacking-database?category={}&start={}&length=120".format(meow, start)
@@ -331,7 +331,7 @@ def main_cat(cat, meow):
       totaldorks = data['recordsTotal']
       totalpages = math.ceil(totaldorks/120)
 
-      thedorks = get_dorks(data) #update
+      thedorks, count = get_dorks(data, count) #
       for dork in thedorks:
         dorks.append(dork)
 
