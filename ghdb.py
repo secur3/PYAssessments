@@ -38,22 +38,17 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--test", help="Only test 11 items per subcategory", action="store_true")
 parser.add_argument("--debug", help="Turn on debugging", action="store_true")
 parser.add_argument("--proxy", help="Use to provide a proxy to connect through (e.g. --proxy '192.168.187.187:8888')")
+parser.add_argument("--threads", help="Use to change the default threads from 4", type=int)
 args = parser.parse_args()
 
-if args.test:
-  TEST = True
-else:
-  TEST = False # set to True to limit tries to 11 per subcategory; this should result in 99 queries at most
+if args.test: TEST = True
+else: TEST = False # set to True to limit tries to 11 per subcategory; this should result in 99 queries at most
 
-if args.proxy:
-  useprox = args.proxy
-else:
-  useprox = False # set to a proxy value to send traffic through proxy
+if args.proxy: useprox = args.proxy
+else: useprox = False # set to a proxy value to send traffic through proxy
 
-if args.debug:
-  myloglevel = logging.DEBUG
-else:
-  myloglevel = logging.INFO # change to DEBUG for more info; WARNING for less
+if args.debug: myloglevel = logging.DEBUG
+else: myloglevel = logging.INFO # change to DEBUG for more info; WARNING for less
 
 def gk(mtype):
   key = ""
@@ -77,7 +72,8 @@ gbaseurl = 'https://www.googleapis.com/customsearch/v1?key='+gAPIkey+'&cx='+gcse
 grefer = 'https://ecfirst.com/ghdb' # Referer for GCSE (if applicable)
 useragent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36'
 
-maxthreads = 4 # max number of simultanious connections to the GCSE
+if args.threads: maxthreads = args.threads+1
+else: maxthreads = 5 # max number of simultanious connections to the GCSE
 
 outbase = '/client/' # Base dir for output files
 htmloutfile = '-ghdbqueries.html' # HTML file suffix for domain specific generated queries
@@ -293,7 +289,7 @@ def get_ghdb(): # Gets the GHDB; pulls Categories and urls; pulls dorks and urls
     ct.daemon=True
     ct.start()
     time.sleep(sleepsec)
-    while int(threading.activeCount()) >= 3: pass
+    while int(threading.activeCount()) >= maxthreads: pass
 
   while int(threading.activeCount()) > 1: pass
 
@@ -331,7 +327,7 @@ def main_cat(cat, meow):
       caturl = "https://www.exploit-db.com/google-hacking-database?category={}&start={}&length=120".format(meow, start)
       page = gbro(caturl, 0)
       resp = BeautifulSoup(page, 'html.parser') #
-      data = json.loads(resp.text)
+      data = json.loads(resp.text.replace('in the "Vulnerable Files" section.', "in the 'Vulnerable Files' section."))
       totaldorks = data['recordsTotal']
       totalpages = math.ceil(totaldorks/120)
 
