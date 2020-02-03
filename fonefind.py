@@ -28,8 +28,18 @@ import ssl
 import re
 import gzip
 from io import StringIO
+import argparse
 
-useprox = 0 # set to 1 to send traffic through proxy
+from ecuseragent import * #assigns the useragent variable
+
+parser=argparse.ArgumentParser()
+parser.add_argument("-o", "--out", help="Base path to save the file (default is '/client/')")
+parser.add_argument("-p", "--proxy", help="Provide a proxy to connect through (e.g. '192.168.187.187:888')")
+parser.add_argument("-t", "--threads", help="Change the number of threads used from 4", type=int)
+args = parser.parse_args()
+
+if args.proxy: useprox = args.proxy
+else: useprox = False # set to proxy value to send traffic through proxy
 
 def gk(mtype):
   key = ""
@@ -53,9 +63,11 @@ gcseID = gk("cse") # Google Custom Search Engine ID
 gbaseurl = 'https://www.googleapis.com/customsearch/v1?key='+gAPIkey+'&cx='+gcseID+'&q='
 
 grefer = 'https://ecfirst.com/fonefind' # Referer for GCSE (if applicable)
-maxthreads = 4 # max number of simultanious connections to the GCSE
+if args.threads: maxthreads = args.threads+1
+else: maxthreads = 5 # max number of simultanious connections to the GCSE
 
-outbase = '/client/' # Base dir for output files
+if args.out: outbase = args.out
+else: outbase = '/client/' # Base dir for output files
 outfile = outbase+"phones.txt"
 
 domain = ""
@@ -206,18 +218,18 @@ def gbro(url, g=1, rt=1): # Browser; takes an url and optional int (used w/ Goog
   tname = threading.currentThread().name
   resp = ''
   try:
-    if (useprox == 1):
+    if useprox:
       ctx = ssl.create_default_context()
       ctx.check_hostname = False
       ctx.verify_mode = ssl.CERT_NONE
-      mproxy = urllib.request.ProxyHandler({'https': '192.168.187.187:8888'})
+      mproxy = urllib.request.ProxyHandler({'https': useprox})
       mopener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ctx), mproxy)
       urllib.request.install_opener(mopener)
     #wbro = urllib2.Request(url)
     #if (g == 1): wbro.addheaders=[('User-Agent', 'Linux Firefox (ecfirst); GHDB'), ('Referer', grefer)]
     #else: wbro.addheaders=[('User-Agent', 'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:48.0) Gecko/20100101 Firefox/48.0'), ('Accept-encoding', 'gzip')]
-    if (g == 1): mheaders = { 'User-Agent': 'Linux Firefox (ecfirst); GHDB', 'Referer': grefer }
-    else: mheaders = { 'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:48.0) Gecko/20100101 Firefox/48.0', 'Accept-encoding': 'gzip'}
+    if (g == 1): mheaders = { 'User-Agent': useragent, 'Referer': grefer }
+    else: mheaders = { 'User-Agent': useragent, 'Accept-encoding': 'gzip'}
     wbro = urllib.request.Request(url, headers=mheaders)
     r = urllib.request.urlopen(url=wbro, timeout=11.12)
     if r.info().get('Content-Encoding') == 'gzip':
