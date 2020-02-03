@@ -34,6 +34,8 @@ from io import StringIO, BytesIO
 import argparse
 import math
 
+from ecuseragent import * #assigns the useragent variable
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--test", help="Only test 11 items per subcategory", action="store_true")
 parser.add_argument("--debug", help="Turn on debugging", action="store_true")
@@ -70,7 +72,7 @@ gAPIkey = gk("api") # Google API key
 gcseID = gk("cse") # Google Custom Search Engine ID
 gbaseurl = 'https://www.googleapis.com/customsearch/v1?key='+gAPIkey+'&cx='+gcseID+'&q=' # Base URL for Google CSE queries
 grefer = 'https://ecfirst.com/ghdb' # Referer for GCSE (if applicable)
-useragent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36'
+#useragent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36'
 
 if args.threads: maxthreads = args.threads+1
 else: maxthreads = 5 # max number of simultanious connections to the GCSE

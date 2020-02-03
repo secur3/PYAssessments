@@ -12,6 +12,8 @@ import shutil
 import argparse
 import logging
 
+from ecuseragent import * #assigns the useragent variable
+
 parser = argparse.ArgumentParser()
 parser.add_argument("savepath", help="The base path to create folder structure (e.g '/client/crypt/ACME/')")
 parser.add_argument("domain", help="The client domain you were querying (e.g. ecfirst.com)")
@@ -30,6 +32,8 @@ savepath=args.savepath
 mydom=args.domain
 mylinks = []
 
+#useragent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36' #update as needed
+
 def argcheck (path, dom, aurl): #basic check that the args passed in are what we need
   if not os.path.isdir(path):
     logging.critical("")
@@ -45,7 +49,7 @@ def argcheck (path, dom, aurl): #basic check that the args passed in are what we
     exit()
 
 def bro (aurl, savepath=""): #takes a URL and returns a BeautifulSoup object of the response or saves the file if savepath is provided 
-  req = urllib.request.Request(aurl, data=None, headers={'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36'})
+  req = urllib.request.Request(aurl, data=None, headers={'User-Agent': useragent})
 
   if not savepath:
     with urllib.request.urlopen(req) as resp:
