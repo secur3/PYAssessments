@@ -15,11 +15,16 @@ import logging
 from pysnmp.hlapi import *
 import sys
 from time import sleep
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("csv", help="Path to the CSV file (Headers:Host,String)")
+args = parser.parse_args()
 
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 resfile = '/client/snmp_validated.csv'
 
-if len(sys.argv) < 2:
+if not args.csv:
   logging.critical("You must supply the path to the csv file [Headers:Host,String]")
   sys.exit()
 csvfl = sys.argv[1]
