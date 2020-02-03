@@ -2,9 +2,11 @@
 # provided a local save path, a target domain name and a Google search URL
 # grabs the links for the target domain from the search results
 # downloads those files and saves them in the same folder structure as the URL
+#bmiller 01.2020
 
 import urllib.request
 from urllib.parse import urlparse
+from urllib.error import URLError, HTTPError
 from bs4 import BeautifulSoup
 from pathlib import Path
 import os
@@ -52,8 +54,12 @@ def bro (aurl, savepath=""): #takes a URL and returns a BeautifulSoup object of 
   req = urllib.request.Request(aurl, data=None, headers={'User-Agent': useragent})
 
   if not savepath:
-    with urllib.request.urlopen(req) as resp:
-      response = BeautifulSoup(resp.read(), 'html.parser')
+    try:
+      with urllib.request.urlopen(req) as resp:
+        response = BeautifulSoup(resp.read(), 'html.parser')
+    except HTTPError as err:
+        logging.critical("Error accessing Google: {}".format(err.reason))
+        exit()
   else:
     filename, tpath, mdom = getFilename (aurl)
     newpath = mdom + "/" + tpath
@@ -64,13 +70,18 @@ def bro (aurl, savepath=""): #takes a URL and returns a BeautifulSoup object of 
     Path(newsavepath).mkdir(parents=True, exist_ok=True)
     logging.debug("Creating '{}' if doesnt exist".format(newsavepath))
     logging.info("Downloading '{}' :: from '{}'".format(filename, aurl))
-    with urllib.request.urlopen(req) as resp, open(outfile, 'wb') as out_file:
-      try:
-        shutil.copyfileobj(resp, out_file)
-        logging.debug("Saved '{}'".format(filename))
-        response = True
-      except:
-        response = False
+    try:
+      with urllib.request.urlopen(req) as resp, open(outfile, 'wb') as out_file:
+        try:
+          shutil.copyfileobj(resp, out_file)
+          logging.debug("Saved '{}'".format(filename))
+          response = True
+        except:
+          response = False
+    except HTTPError as err:
+      if err.code == 404: logging.warning("\tUnable to download '{}', got 404 Not Found".format(aurl))
+      else: logging.warning("\tError accessing client site for '{}' :: {}".format(aurl, err.reason))
+      response = True
 
   return response
 
@@ -82,7 +93,7 @@ def gscrape (resp, dom): #takes a BeautifulSoup object & domain and pulls out th
         link = links.get('href')
         logging.debug("FOUND: '{}'".format(link))
         if "webcache" in link: continue
-        if "search?q" in link: continue
+        if "search?" in link and "q=" in link: continue
         if "google.com" in link: continue
         if dom in link:
           if not link in thelinks: thelinks.append(link)
@@ -126,5 +137,5 @@ for link in mylinks: #step through the links and download the file
   if not resp:
     logging.warning("! Unable to download/save '{}' !".format(link))
 
-logging.info("")
+print("")
 logging.info("Done")
