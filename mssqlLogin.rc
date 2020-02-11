@@ -8,7 +8,7 @@ set VERBOSE true
 set THREADS 8
  
 <ruby>
-self.run_single("services -s mssql -u -p 1433 -R")
+self.run_single("services -S mssql -u -p 1433 -R")
 self.run_single("set RPORT 1433")
 self.run_single("run")
 

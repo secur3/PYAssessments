@@ -13,14 +13,14 @@ end
 use auxiliary/scanner/oracle/sid_enum
 set threads 8
 set verbose true
-services -s oracle -u -R
+services -S oracle -u -R
 run
 
 use auxiliary/scanner/oracle/sid_brute
 set bruteforce_speed 4
 set threads 8
 set verbose true
-services -s oracle -u -R
+services -S oracle -u -R
 run
 
 use auxiliary/scanner/oracle/oracle_login
