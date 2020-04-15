@@ -1,7 +1,7 @@
 use auxiliary/admin/smb/list_directory
-set SMBDomain fmashley.com
-set SMBUser guest
-set SMBPass ""
+set SMBDomain vvhosp.vvh.org
+set SMBUser eclipsys
+set SMBPass eclipsys
 set VERBOSE False
 
 <ruby>

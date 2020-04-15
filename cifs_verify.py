@@ -60,6 +60,10 @@ def testread (username, password, connect):
       success = True
   except smbprotocol.exceptions.SMBResponseException as smberr:
     logging.debug(smberr)
+  except smbprotocol.exceptions.SMBOSError as smberr:
+    if "ACCESS_DENIED" in str(smberr):
+      logging.debug(smberr)
+    else: logging.critical(smberr)
   except (socket.timeout, socket.gaierror, ValueError) as conerr:
     logging.critical("Unable to connect to '{}'".format(connect))
   except smbprotocol.exceptions.SMBAuthenticationError as autherr:
@@ -85,7 +89,9 @@ def testwrite (username, password, connect):
   except smbprotocol.exceptions.SMBAuthenticationError as autherr:
     logging.critical("Bad Creds for '{}'".format(connect))
   except smbprotocol.exceptions.SMBOSError as filerrr:
-    logging.critical("Unable to delete from '{}'".format(connect))
+    if "ACCESS_DENIED" in str(filerrr):
+      logging.debug(filerrr)
+    else: logging.critical("Unable to delete from '{}'".format(connect))
 
   return success
 
