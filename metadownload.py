@@ -13,6 +13,7 @@ import os
 import shutil
 import argparse
 import logging
+import ssl
 
 from ecuseragent import * #assigns the useragent variable
 
@@ -53,9 +54,13 @@ def argcheck (path, dom, aurl): #basic check that the args passed in are what we
 def bro (aurl, savepath=""): #takes a URL and returns a BeautifulSoup object of the response or saves the file if savepath is provided 
   req = urllib.request.Request(aurl, data=None, headers={'User-Agent': useragent})
 
+  ctx = ssl.create_default_context()
+  ctx.check_hostname = False
+  ctx.verify_mode = ssl.CERT_NONE
+
   if not savepath:
     try:
-      with urllib.request.urlopen(req) as resp:
+      with urllib.request.urlopen(req, context=ctx) as resp:
         response = BeautifulSoup(resp.read(), 'html.parser')
     except HTTPError as err:
         logging.critical("Error accessing Google: {}".format(err.reason))
@@ -71,7 +76,7 @@ def bro (aurl, savepath=""): #takes a URL and returns a BeautifulSoup object of 
     logging.debug("Creating '{}' if doesnt exist".format(newsavepath))
     logging.info("Downloading '{}' :: from '{}'".format(filename, aurl))
     try:
-      with urllib.request.urlopen(req) as resp, open(outfile, 'wb') as out_file:
+      with urllib.request.urlopen(req, context=ctx) as resp, open(outfile, 'wb') as out_file:
         try:
           shutil.copyfileobj(resp, out_file)
           logging.debug("Saved '{}'".format(filename))
@@ -102,8 +107,13 @@ def gscrape (resp, dom): #takes a BeautifulSoup object & domain and pulls out th
 
 def getFilename (path): #takes the URL path and returns the filename and save path
   parsed = urlparse(path)
+  logging.debug("OPath: {}".format(parsed.path))
+  if not os.path.basename(parsed.path):
+    parsed = urlparse(path.strip("/"))
   filename = os.path.basename(parsed.path)
+  logging.debug("Filename: {}".format(filename))
   newpath = os.path.dirname(parsed.path)
+  logging.debug("Path: {}".format(newpath))
   domain = parsed.netloc
   return filename, newpath, domain
 
