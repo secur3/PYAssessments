@@ -84,7 +84,7 @@ def testwrite (username, password, connect):
       logging.debug("Successful delete from '{}'".format(connect))
   except smbprotocol.exceptions.SMBResponseException as smberr:
     logging.debug(smberr)
-  except (socket.timeout, socket.gaierror, ValueError) as conerr:
+  except (socket.timeout, socket.gaierror, ValueError, smbprotocol.exceptions.SMBException) as conerr:
     logging.critical("Unable to connect to '{}'".format(connect))
   except smbprotocol.exceptions.SMBAuthenticationError as autherr:
     logging.critical("Bad Creds for '{}'".format(connect))
