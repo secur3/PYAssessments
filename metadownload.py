@@ -14,6 +14,8 @@ import shutil
 import argparse
 import logging
 import ssl
+from http import cookiejar
+import subprocess
 
 from ecuseragent import * #assigns the useragent variable
 
@@ -35,6 +37,22 @@ savepath=args.savepath
 mydom=args.domain
 mylinks = []
 
+startcookie = "/home/kali/Downloads/cookies.txt"
+cj = cookiejar.MozillaCookieJar()
+cookiefile = "/client/cookies.txt"
+
+if Path(startcookie).is_file():
+  if not Path(cookiefile).is_file():
+    cookies = True
+    subprocess.call(["sed", "-i", 's/^\.google\.com\tfalse/.google.com\tTRUE/g', startcookie])
+    subprocess.call(["sed", "-i", 's/^www\.google\.com\ttrue/www.google.com\tFALSE/g', startcookie])
+    shutil.copyfile(startcookie, cookiefile)
+    subprocess.call(["sed", "-i", '1s/^/# Netscape HTTP Cookie File\\n/', cookiefile])
+
+  cj.load(cookiefile)
+else:
+  cookies = False
+  logging.info("Not using cookies")
 #useragent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36' #update as needed
 
 def argcheck (path, dom, aurl): #basic check that the args passed in are what we need
@@ -52,15 +70,19 @@ def argcheck (path, dom, aurl): #basic check that the args passed in are what we
     exit()
 
 def bro (aurl, savepath=""): #takes a URL and returns a BeautifulSoup object of the response or saves the file if savepath is provided 
-  req = urllib.request.Request(aurl, data=None, headers={'User-Agent': useragent})
-
   ctx = ssl.create_default_context()
   ctx.check_hostname = False
   ctx.verify_mode = ssl.CERT_NONE
 
+  if args.debug: opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj), urllib.request.HTTPSHandler(context=ctx), urllib.request.ProxyHandler({"https":"https://192.168.187.187:8888/"}))
+  else: opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj), urllib.request.HTTPSHandler(context=ctx))
+  opener.addheaders = [('User-agent', useragent)]
+  urllib.request.install_opener(opener)
+  req = urllib.request.Request(aurl)
+
   if not savepath:
     try:
-      with urllib.request.urlopen(req, context=ctx) as resp:
+      with urllib.request.urlopen(req) as resp:
         response = BeautifulSoup(resp.read(), 'html.parser')
     except HTTPError as err:
         logging.critical("Error accessing Google: {}".format(err.reason))
@@ -76,7 +98,7 @@ def bro (aurl, savepath=""): #takes a URL and returns a BeautifulSoup object of 
     logging.debug("Creating '{}' if doesnt exist".format(newsavepath))
     logging.info("Downloading '{}' :: from '{}'".format(filename, aurl))
     try:
-      with urllib.request.urlopen(req, context=ctx) as resp, open(outfile, 'wb') as out_file:
+      with urllib.request.urlopen(req) as resp, open(outfile, 'wb') as out_file:
         try:
           shutil.copyfileobj(resp, out_file)
           logging.debug("Saved '{}'".format(filename))
