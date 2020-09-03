@@ -9,6 +9,8 @@ import socket
 import smbprotocol
 
 parser=argparse.ArgumentParser()
+parser.add_argument("admin_username", help=r"Admin Username to login with, including domain (e.g. 'internal.ecfirst.com\admin')")
+parser.add_argument("admin_password", help="Password for the admin_username provided")
 parser.add_argument("username", help=r"Username to login with, including domain (e.g. 'internal.ecfirst.com\tester')")
 parser.add_argument("password", help="Password for the username provided")
 parser.add_argument("-f", "--file", help="CSV file containing server,path (NO header row)")
@@ -28,6 +30,7 @@ if not (args.file or args.server):
 
 if args.debug:
   LOGLEVEL = logging.DEBUG
+  logging.getLogger("smbprotocol").setLevel(logging.CRITICAL)
 else:
   LOGLEVEL = logging.INFO
   logging.getLogger("smbprotocol").setLevel(logging.CRITICAL)
@@ -40,6 +43,8 @@ else:
   mserver = args.server
   mpath = args.path
 
+auser = args.admin_username
+apass = args.admin_password
 username = args.username
 password = args.password
 
@@ -50,16 +55,25 @@ def argcheck (hfile):
 
   return True
 
-def testread (username, password, connect):
+def testread (auser, apass, username, password, connect):
   logging.info("Testing '{}'".format(connect))
   success = False
+  dfs = False
   try:
+    smbclient.reset_connection_cache()
+    alisting = smbclient.listdir(r"\\{}".format(connect), username=auser, password=apass, connection_timeout=15)
+    smbclient.reset_connection_cache()
     listing = smbclient.listdir(r"\\{}".format(connect), username=username, password=password, connection_timeout=15)
-    if listing:
+    logging.debug(listing)
+    smbclient.reset_connection_cache()
+    if listing == alisting:
       logging.debug("Successful read for '{}'".format(connect))
       success = True
   except smbprotocol.exceptions.SMBResponseException as smberr:
     logging.debug(smberr)
+    if "STATUS_PATH_NOT_COVERED" in sys.exc_info()[0]:
+      logging.critical("DFS share; Manually verify '{}'".format(connect))
+      dfs = True
   except smbprotocol.exceptions.SMBOSError as smberr:
     if "ACCESS_DENIED" in str(smberr):
       logging.debug(smberr)
@@ -68,7 +82,10 @@ def testread (username, password, connect):
     logging.critical("Unable to connect to '{}'".format(connect))
   except smbprotocol.exceptions.SMBAuthenticationError as autherr:
     logging.critical("Bad Creds for '{}'".format(connect))
-  return success
+  except (smbprotocol.exceptions) as smberr:
+    logging.debug("Oops: {}".format(str(smberr)))
+
+  return success, dfs
 
 def testwrite (username, password, connect):
   logging.info("Testing '{}'".format(connect))
@@ -108,6 +125,7 @@ if ans == "1": mode = "read"
 else: mode = "write"
 
 success = []
+manual = []
 
 if hfile:
   with open(hfile, newline='') as csvfile:
@@ -117,16 +135,22 @@ if hfile:
       mserver = row[0]
       mpath = row[1]
       connect = "{}\{}".format(mserver, mpath)
-      if mode == "read": res = testread(username, password, connect)
-      else: res = testwrite(username, password, connect)
-      if res: success.append(connect) 
+      if mode == "read": res, dfs = testread(auser, apass, username, password, connect)
+      else:
+        res = testwrite(username, password, connect)
+        dfs = False
+      if res: success.append(connect)
+      elif dfs: manual.append(connect) 
 
 else:
   res = False
   connect = "{}\{}".format(mserver, mpath)
-  if mode == "read": res = testread(username, password, connect)
-  else: res = testwrite(username, password, connect)
+  if mode == "read": res, dfs = testread(auser, apass, username, password, connect)
+  else: 
+    res = testwrite(username, password, connect)
+    dfs = False
   if res: success.append(connect)
+  elif dfs: manual.append(connect)
 
 print("")
 if success:
@@ -134,5 +158,10 @@ if success:
   for item in success:
     print(item)
 
-print("Done!")
+print("")
+if manual:
+  print("!Manually Verify!:")
+  for item in manual:
+    print(item)
 
+print("Done!")
