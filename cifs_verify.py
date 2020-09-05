@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 import socket
 import smbprotocol
+import sys
 
 parser=argparse.ArgumentParser()
 parser.add_argument("admin_username", help=r"Admin Username to login with, including domain (e.g. 'internal.ecfirst.com\admin')")
