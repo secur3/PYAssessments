@@ -72,9 +72,9 @@ def testread (auser, apass, username, password, connect):
       success = True
   except smbprotocol.exceptions.SMBResponseException as smberr:
     logging.debug(smberr)
-    if "logon is invalid" in smberr:
+    if "logon is invalid" in str(smberr):
       logging.critical("Bad Creds for '{}'".format(connect))
-    elif "STATUS_PATH_NOT_COVERED" in smberr:
+    elif "STATUS_PATH_NOT_COVERED" in str(smberr):
       logging.critical("DFS share; Manually verify '{}'".format(connect))
       dfs = True
   except smbprotocol.exceptions.SMBOSError as smberr:
