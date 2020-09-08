@@ -72,7 +72,9 @@ def testread (auser, apass, username, password, connect):
       success = True
   except smbprotocol.exceptions.SMBResponseException as smberr:
     logging.debug(smberr)
-    if "STATUS_PATH_NOT_COVERED" in sys.exc_info()[0]:
+    if "logon is invalid" in smberr:
+      logging.critical("Bad Creds for '{}'".format(connect))
+    elif "STATUS_PATH_NOT_COVERED" in smberr:
       logging.critical("DFS share; Manually verify '{}'".format(connect))
       dfs = True
   except smbprotocol.exceptions.SMBOSError as smberr:
@@ -141,13 +143,13 @@ if hfile:
         res = testwrite(username, password, connect)
         dfs = False
       if res: success.append(connect)
-      elif dfs: manual.append(connect) 
+      elif dfs: manual.append(connect)
 
 else:
   res = False
   connect = "{}\{}".format(mserver, mpath)
   if mode == "read": res, dfs = testread(auser, apass, username, password, connect)
-  else: 
+  else:
     res = testwrite(username, password, connect)
     dfs = False
   if res: success.append(connect)
