@@ -23,6 +23,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("savepath", help="The base path to create folder structure (e.g '/client/crypt/ACME/')")
 parser.add_argument("domain", help="The client domain you were querying (e.g. ecfirst.com)")
 parser.add_argument("-u", "--url", help="The Google search URL")
+parser.add_argument("--links", help="Save the website links instead of the actual files (to be used with FOCA)", action="store_true")
 parser.add_argument("--debug", help="Enable DEBUG output", action="store_true")
 args = parser.parse_args()
 
@@ -35,6 +36,7 @@ logging.basicConfig(format='%(levelname)s:%(message)s', level=LOGLEVEL)
 
 savepath=args.savepath
 mydom=args.domain
+linksfile="/{}{}.txt".format(savepath, mydom)
 mylinks = []
 
 startcookie = "/home/kali/Downloads/cookies.txt"
@@ -69,7 +71,7 @@ def argcheck (path, dom, aurl): #basic check that the args passed in are what we
     logging.critical("The supplied Google URL ('{}') does not look like a Google Search URL".format(aurl))
     exit()
 
-def bro (aurl, savepath=""): #takes a URL and returns a BeautifulSoup object of the response or saves the file if savepath is provided 
+def bro (aurl, savepath="", links=False): #takes a URL and returns a BeautifulSoup object of the response or saves the file if savepath is provided 
   ctx = ssl.create_default_context()
   ctx.check_hostname = False
   ctx.verify_mode = ssl.CERT_NONE
@@ -80,14 +82,14 @@ def bro (aurl, savepath=""): #takes a URL and returns a BeautifulSoup object of 
   urllib.request.install_opener(opener)
   req = urllib.request.Request(aurl)
 
-  if not savepath:
+  if not savepath and not links:
     try:
       with urllib.request.urlopen(req) as resp:
         response = BeautifulSoup(resp.read(), 'html.parser')
     except HTTPError as err:
         logging.critical("Error accessing Google: {}".format(err.reason))
         exit()
-  else:
+  elif not links:
     filename, tpath, mdom = getFilename (aurl)
     newpath = mdom + "/" + tpath
     if not savepath.endswith('/'): savepath = savepath +"/"
@@ -109,6 +111,19 @@ def bro (aurl, savepath=""): #takes a URL and returns a BeautifulSoup object of 
       if err.code == 404: logging.warning("\tUnable to download '{}', got 404 Not Found".format(aurl))
       else: logging.warning("\tError accessing client site for '{}' :: {}".format(aurl, err.reason))
       response = True
+  else:
+    try:
+      if Path(linksfile).exists():
+        logging.info("Saving link '{}'".format(aurl))
+        with open(linksfile, "a") as outfile:
+          outfile.write(aurl+"\n")
+      else:
+        logging.info("Saving First link '{}'".format(aurl))
+        with open(linksfile, "w") as outfile:
+          outfile.write(aurl+"\n")
+      response = True
+    except:
+      response = False
 
   return response
 
@@ -145,6 +160,10 @@ if args.url:
   URL = args.url #use the URL passed via command line, if there
 else:
   URL = input("Enter the Google search URL: ") 
+if args.links:
+  links = True
+else:
+  links = False
 
 argcheck(savepath, mydom, URL) #check the passed args are what we need
 
@@ -162,10 +181,12 @@ if not mylinks:
   logging.info("You could enable --debug to see the links returned")
   exit()
 
-logging.info("Downloading files for '{}'...".format(mydom))
+if links: logging.info("Saving links for '{}'".format(mydom))
+else: logging.info("Downloading files for '{}'...".format(mydom))
 
 for link in mylinks: #step through the links and download the file
-  resp = bro(link, savepath) #resp is True if no error saving
+  if links: resp = bro(link, False, True)
+  else: resp = bro(link, savepath) #resp is True if no error saving
   if not resp:
     logging.warning("! Unable to download/save '{}' !".format(link))
 
