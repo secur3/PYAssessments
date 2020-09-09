@@ -31,7 +31,7 @@ if not (args.file or args.server):
 
 if args.debug:
   LOGLEVEL = logging.DEBUG
-  logging.getLogger("smbprotocol").setLevel(logging.CRITICAL)
+  logging.getLogger("smbprotocol").setLevel(logging.INFO)
 else:
   LOGLEVEL = logging.INFO
   logging.getLogger("smbprotocol").setLevel(logging.CRITICAL)
@@ -60,9 +60,11 @@ def testread (auser, apass, username, password, connect):
   logging.info("Testing '{}'".format(connect))
   success = False
   dfs = False
+  clnt = 0
   try:
     smbclient.reset_connection_cache()
     alisting = smbclient.listdir(r"\\{}".format(connect), username=auser, password=apass, connection_timeout=15)
+    clnt = 1
     smbclient.reset_connection_cache()
     listing = smbclient.listdir(r"\\{}".format(connect), username=username, password=password, connection_timeout=15)
     logging.debug(listing)
@@ -70,13 +72,6 @@ def testread (auser, apass, username, password, connect):
     if listing == alisting:
       logging.debug("Successful read for '{}'".format(connect))
       success = True
-  except smbprotocol.exceptions.SMBResponseException as smberr:
-    logging.debug(smberr)
-    if "logon is invalid" in str(smberr):
-      logging.critical("Bad Creds for '{}'".format(connect))
-    elif "STATUS_PATH_NOT_COVERED" in str(smberr):
-      logging.critical("DFS share; Manually verify '{}'".format(connect))
-      dfs = True
   except smbprotocol.exceptions.SMBOSError as smberr:
     if "ACCESS_DENIED" in str(smberr):
       logging.debug(smberr)
@@ -85,8 +80,21 @@ def testread (auser, apass, username, password, connect):
     logging.critical("Unable to connect to '{}'".format(connect))
   except smbprotocol.exceptions.SMBAuthenticationError as autherr:
     logging.critical("Bad Creds for '{}'".format(connect))
-  except (smbprotocol.exceptions) as smberr:
-    logging.debug("Oops: {}".format(str(smberr)))
+  except smbprotocol.exceptions.LogonFailure as autherr:
+    if clnt == 1:
+      logging.critical("Bad Logon for '{}'".format(connect))
+      dfs = True
+  except smbprotocol.exceptions.SMBResponseException as smberr:
+    logging.debug(smberr)
+    if "STATUS_PATH_NOT_COVERED" in str(smberr):
+      logging.critical("DFS share; Manually verify '{}'".format(connect))
+      dfs = True
+    else:
+      if clnt == 0:
+        logging.critical("Oops-Admin: {}".format(str(smberr)))
+      else:
+        logging.critical("Oops: {}".format(str(smberr)))
+        dfs = True
 
   return success, dfs
 
