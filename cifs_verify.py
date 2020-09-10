@@ -167,6 +167,7 @@ if hfile:
         dfs = False
       if res: success.append(connect)
       elif dfs: manual.append(connect)
+      else: fail.append(connect)
 
 else:
   res = False
@@ -196,4 +197,4 @@ if manual:
 if fail:
   writer(fail, "fail")
 
-print("Done!")
+print("Done!\nFiles written to '/client/'")
