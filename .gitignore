@@ -11,3 +11,4 @@ ghdb.bk/
 checkcopy.sh
 wificopy.sh
 physcopy.sh
+__pycache__
