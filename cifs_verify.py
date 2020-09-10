@@ -130,7 +130,7 @@ def writer(data, type):
 
   with open(filename, 'w') as fl:
     for item in data:
-      line = item.replace("\", ",")
+      line = item.replace(r"\", ",")
       fl.write("{}\n".format(line))
 
   return
