@@ -123,6 +123,20 @@ def testwrite (username, password, connect):
 
   return success
 
+def writer(data, type):
+  if type == "success": filename = "/client/cifs_success.csv"
+  elif type == "manual": filename = "/client/cifs_manual.csv"
+  elif type == "fail": filename = "/client/cifs_fail.csv"
+
+  with open(filename, 'w') as fl:
+    for item in data:
+      line = item.replace("\", ",")
+      fl.write("{}\n".format(line))
+
+  return
+
+### End Functions ###
+
 if hfile: argcheck(hfile)
 
 print("")
@@ -136,6 +150,7 @@ if ans == "1": mode = "read"
 else: mode = "write"
 
 success = []
+fail = []
 manual = []
 
 if hfile:
@@ -162,17 +177,23 @@ else:
     dfs = False
   if res: success.append(connect)
   elif dfs: manual.append(connect)
+  else: fail.append(connect)
 
 print("")
 if success:
   print("Success:")
   for item in success:
     print(item)
+  writer(success, "success")
 
 print("")
 if manual:
   print("!Manually Verify!:")
   for item in manual:
     print(item)
+  writer(manual, "manual")
+
+if fail:
+  writer(fail, "fail")
 
 print("Done!")
