@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import smbclient
 import csv
@@ -112,11 +112,11 @@ def testwrite (username, password, connect):
       logging.debug("Successful delete from '{}'".format(connect))
   except smbprotocol.exceptions.SMBResponseException as smberr:
     logging.debug(smberr)
-  except (socket.timeout, socket.gaierror, ValueError, smbprotocol.exceptions.SMBException) as conerr:
+  except (socket.timeout, socket.gaierror, ValueError) as conerr:
     logging.critical("Unable to connect to '{}'".format(connect))
   except smbprotocol.exceptions.SMBAuthenticationError as autherr:
     logging.critical("Bad Creds for '{}'".format(connect))
-  except smbprotocol.exceptions.SMBOSError as filerrr:
+  except (smbprotocol.exceptions.SMBOSError, smbprotocol.exceptions.SMBException) as filerrr:
     if "ACCESS_DENIED" in str(filerrr):
       logging.debug(filerrr)
     else: logging.critical("Unable to delete from '{}'".format(connect))
