@@ -71,7 +71,7 @@ def argcheck (path, dom, aurl): #basic check that the args passed in are what we
     logging.critical("The supplied Google URL ('{}') does not look like a Google Search URL".format(aurl))
     exit()
 
-def bro (aurl, savepath="", links=False): #takes a URL and returns a BeautifulSoup object of the response or saves the file if savepath is provided 
+def bro (aurl, savepath="", links=False): #takes a URL and returns a BeautifulSoup object of the response or saves the file if savepath is provided
   ctx = ssl.create_default_context()
   ctx.check_hostname = False
   ctx.verify_mode = ssl.CERT_NONE
@@ -155,40 +155,40 @@ def getFilename (path): #takes the URL path and returns the filename and save pa
   return filename, newpath, domain
 
 ### end functions ###
+if __name__ == "__main__":
+  if args.url:
+    URL = args.url #use the URL passed via command line, if there
+  else:
+    URL = input("Enter the Google search URL: ")
+  if args.links:
+    links = True
+  else:
+    links = False
 
-if args.url:
-  URL = args.url #use the URL passed via command line, if there
-else:
-  URL = input("Enter the Google search URL: ") 
-if args.links:
-  links = True
-else:
-  links = False
+  argcheck(savepath, mydom, URL) #check the passed args are what we need
 
-argcheck(savepath, mydom, URL) #check the passed args are what we need
+  logging.info("Getting Google search page...")
+  logging.debug("Using '{}'".format(URL))
 
-logging.info("Getting Google search page...")
-logging.debug("Using '{}'".format(URL))
+  gres = bro(URL) #get the Google search page URL passed in
 
-gres = bro(URL) #get the Google search page URL passed in
+  mylinks = gscrape(gres, mydom) #get the links to the client domain passed in
 
-mylinks = gscrape(gres, mydom) #get the links to the client domain passed in
+  if not mylinks:
+    logging.critical("")
+    logging.critical("No links found! Maybe Google blocked access or there were no links on the page for '{}'".format(mydom))
+    logging.critical("\tYou could try the link in a browser to confirm, and try again shortly")
+    logging.info("You could enable --debug to see the links returned")
+    exit()
 
-if not mylinks:
-  logging.critical("")
-  logging.critical("No links found! Maybe Google blocked access or there were no links on the page for '{}'".format(mydom))
-  logging.critical("\tYou could try the link in a browser to confirm, and try again shortly")
-  logging.info("You could enable --debug to see the links returned")
-  exit()
+  if links: logging.info("Saving links for '{}'".format(mydom))
+  else: logging.info("Downloading files for '{}'...".format(mydom))
 
-if links: logging.info("Saving links for '{}'".format(mydom))
-else: logging.info("Downloading files for '{}'...".format(mydom))
+  for link in mylinks: #step through the links and download the file
+    if links: resp = bro(link, False, True)
+    else: resp = bro(link, savepath) #resp is True if no error saving
+    if not resp:
+      logging.warning("! Unable to download/save '{}' !".format(link))
 
-for link in mylinks: #step through the links and download the file
-  if links: resp = bro(link, False, True)
-  else: resp = bro(link, savepath) #resp is True if no error saving
-  if not resp:
-    logging.warning("! Unable to download/save '{}' !".format(link))
-
-print("")
-logging.info("Done")
+  print("")
+  logging.info("Done")

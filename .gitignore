@@ -5,6 +5,7 @@ personal/
 misc/
 ghdb/
 ghdb.bk/
+dnsrecon/
 .gapikey
 .gcseid
 .DS_Store
