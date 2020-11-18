@@ -16,6 +16,7 @@ import logging
 import ssl
 from http import cookiejar
 import subprocess
+import re
 
 from ecuseragent import * #assigns the useragent variable
 
@@ -23,7 +24,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("savepath", help="The base path to create folder structure (e.g '/client/crypt/ACME/')")
 parser.add_argument("domain", help="The client domain you were querying (e.g. ecfirst.com)")
 parser.add_argument("-u", "--url", help="The Google search URL")
-parser.add_argument("--links", help="Save the website links instead of the actual files (to be used with FOCA)", action="store_true")
+parser.add_argument("--links", help="Save the website links instead of the actual files (to be used with FOCA or when FOCA has download issues)", action="store_true")
+parser.add_argument("-f", "--file", help="File to use instead of URL(s) from browser (e.g. /client/file.txt)")
 parser.add_argument("--debug", help="Enable DEBUG output", action="store_true")
 args = parser.parse_args()
 
@@ -31,6 +33,9 @@ if args.debug:
   LOGLEVEL = logging.DEBUG
 else:
   LOGLEVEL = logging.INFO
+
+if args.file and args.url:
+  parser.error("You can't use --file and --url together")
 
 logging.basicConfig(format='%(levelname)s:%(message)s', level=LOGLEVEL)
 
@@ -57,7 +62,7 @@ else:
   logging.info("Not using cookies")
 #useragent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36' #update as needed
 
-def argcheck (path, dom, aurl): #basic check that the args passed in are what we need
+def argcheck (path, dom, aurl="http://notneeded"): #basic check that the args passed in are what we need
   if not os.path.isdir(path):
     logging.critical("")
     logging.critical("The supplied path ('{}') does not exist or is not a directory".format(path))
@@ -66,7 +71,7 @@ def argcheck (path, dom, aurl): #basic check that the args passed in are what we
     print ("")
     logging.critical("The supplied Google URL ('{}') does not look like a web URL (not starting with 'http' or 'https')".format(aurl))
     exit()
-  if not "google.com/search" in aurl:
+  if not ("google.com/search" in aurl or "notneeded" in aurl) :
     logging.critical("")
     logging.critical("The supplied Google URL ('{}') does not look like a Google Search URL".format(aurl))
     exit()
@@ -80,7 +85,7 @@ def bro (aurl, savepath="", links=False): #takes a URL and returns a BeautifulSo
   else: opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj), urllib.request.HTTPSHandler(context=ctx))
   opener.addheaders = [('User-agent', useragent)]
   urllib.request.install_opener(opener)
-  req = urllib.request.Request(aurl)
+  req = urllib.request.Request(aurl.strip())
 
   if not savepath and not links:
     try:
@@ -90,21 +95,27 @@ def bro (aurl, savepath="", links=False): #takes a URL and returns a BeautifulSo
         logging.critical("Error accessing Google: {}".format(err.reason))
         exit()
   elif not links:
-    filename, tpath, mdom = getFilename (aurl)
+    tfilename, tpath, mdom = getFilename (aurl)
     newpath = mdom + "/" + tpath
     if not savepath.endswith('/'): savepath = savepath +"/"
     newsavepath = savepath + newpath
     if not newsavepath.endswith('/'): newsavepath = newsavepath + "/"
-    outfile = newsavepath + filename
+    #outfile = newsavepath + filename
     Path(newsavepath).mkdir(parents=True, exist_ok=True)
     logging.debug("Creating '{}' if doesnt exist".format(newsavepath))
-    logging.info("Downloading '{}' :: from '{}'".format(filename, aurl))
+    #logging.info("Downloading '{}' :: from '{}'".format(filename, aurl.stip()))
     try:
-      with urllib.request.urlopen(req) as resp, open(outfile, 'wb') as out_file:
+      with urllib.request.urlopen(req) as resp:
         try:
-          shutil.copyfileobj(resp, out_file)
-          logging.debug("Saved '{}'".format(filename))
-          response = True
+          myheads = resp.headers['content-disposition']
+          tfilename = re.findall("filename=(.+)", myheads)[0]
+          filename = tfilename[1:-1]
+          logging.info("Downloading '{}' :: from '{}'".format(filename, str(aurl).strip()))
+          outfile = newsavepath + filename
+          with open(outfile, 'wb') as out_file:
+            shutil.copyfileobj(resp, out_file)
+            logging.debug("Saved '{}'".format(filename))
+            response = True
         except:
           response = False
     except HTTPError as err:
@@ -147,7 +158,7 @@ def getFilename (path): #takes the URL path and returns the filename and save pa
   logging.debug("OPath: {}".format(parsed.path))
   if not os.path.basename(parsed.path):
     parsed = urlparse(path.strip("/"))
-  filename = os.path.basename(parsed.path)
+  filename = os.path.basename(parsed.path).strip()
   logging.debug("Filename: {}".format(filename))
   newpath = os.path.dirname(parsed.path)
   logging.debug("Path: {}".format(newpath))
@@ -156,7 +167,10 @@ def getFilename (path): #takes the URL path and returns the filename and save pa
 
 ### end functions ###
 if __name__ == "__main__":
-  if args.url:
+  docfile = ''
+  if args.file:
+    docfile = args.file #use the URL(s) in file instead of Google search URL
+  elif args.url:
     URL = args.url #use the URL passed via command line, if there
   else:
     URL = input("Enter the Google search URL: ")
@@ -165,30 +179,41 @@ if __name__ == "__main__":
   else:
     links = False
 
-  argcheck(savepath, mydom, URL) #check the passed args are what we need
+  if docfile:
+    argcheck(savepath, mydom)
+  else:
+    argcheck(savepath, mydom, URL) #check the passed args are what we need
 
-  logging.info("Getting Google search page...")
-  logging.debug("Using '{}'".format(URL))
+  if docfile:
+    logging.info("Getting links from '{}'...".format(docfile))
+    with open(docfile) as fp:
+      for link in fp:
+        logging.debug("Using '{}'".format(link.strip()))
+        resp = bro(link.strip(), savepath) #resp is True if no error saving
+        if not resp:
+          logging.warning("! Unable to download/save '{}' !".format(link.strip()))
+  else:
+    logging.info("Getting Google search page...")
+    logging.debug("Using '{}'".format(URL))
+    gres = bro(URL) #get the Google search page URL passed in
 
-  gres = bro(URL) #get the Google search page URL passed in
+    mylinks = gscrape(gres, mydom) #get the links to the client domain passed in
 
-  mylinks = gscrape(gres, mydom) #get the links to the client domain passed in
+    if not mylinks:
+      logging.critical("")
+      logging.critical("No links found! Maybe Google blocked access or there were no links on the page for '{}'".format(mydom))
+      logging.critical("\tYou could try the link in a browser to confirm, and try again shortly")
+      logging.info("You could enable --debug to see the links returned")
+      exit()
 
-  if not mylinks:
-    logging.critical("")
-    logging.critical("No links found! Maybe Google blocked access or there were no links on the page for '{}'".format(mydom))
-    logging.critical("\tYou could try the link in a browser to confirm, and try again shortly")
-    logging.info("You could enable --debug to see the links returned")
-    exit()
+    if links: logging.info("Saving links for '{}'".format(mydom))
+    else: logging.info("Downloading files for '{}'...".format(mydom))
 
-  if links: logging.info("Saving links for '{}'".format(mydom))
-  else: logging.info("Downloading files for '{}'...".format(mydom))
-
-  for link in mylinks: #step through the links and download the file
-    if links: resp = bro(link, False, True)
-    else: resp = bro(link, savepath) #resp is True if no error saving
-    if not resp:
-      logging.warning("! Unable to download/save '{}' !".format(link))
+    for link in mylinks: #step through the links and download the file
+      if links: resp = bro(link, False, True)
+      else: resp = bro(link, savepath) #resp is True if no error saving
+      if not resp:
+        logging.warning("! Unable to download/save '{}' !".format(link))
 
   print("")
   logging.info("Done")
