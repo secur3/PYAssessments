@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 # Checks if the GHDB dorks have been recently downloaded (from www.exploit-db.com); downloads if not
 # Creates GHDB queries based on provided domain (optional)
