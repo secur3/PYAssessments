@@ -567,14 +567,17 @@ def spfTest(dom, mails):
   spfres = []
   spfrecord = ''
 
-  a = dns.resolver.resolve(dom, 'TXT')
-  if len(a.rrset) > 0:
-    for rec in a.rrset:
-      if (rec.to_text()).startswith('"v=spf1'):
-        spfrec = True
-        spfrecord = rec.to_text()
-        spfres.append("{} | {}\n".format(dom, spfrecord))
-        break
+  try:
+    a = dns.resolver.resolve(dom, 'TXT')
+    if len(a.rrset) > 0:
+      for rec in a.rrset:
+        if (rec.to_text()).startswith('"v=spf1'):
+          spfrec = True
+          spfrecord = rec.to_text()
+          spfres.append("{} | {}\n".format(dom, spfrecord))
+          break
+  except Exception as err:
+    pass
 
   if spfrec: stat = "PASS"
   else:
@@ -613,10 +616,10 @@ def spfTest(dom, mails):
   if spfrecord:
     if "+all" in spfrecord: spfa = True
 
-  if spfa: stat = "FAIL"
-  else: stat = "PASS"
+    if spfa: stat = "FAIL"
+    else: stat = "PASS"
 
-  thespf[test] = {text:[], "Status":stat}
+    thespf[test] = {text:[], "Status":stat}
 
   return thespf
 
