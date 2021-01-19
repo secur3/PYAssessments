@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 #Performs various DNS tests against the provided domain
+#proxies some mail tests through scans.ecfirst.com
 
 import dns.resolver
 import argparse
@@ -10,7 +11,7 @@ import ipaddress
 from datetime import datetime
 import smtplib
 import socks
-
+import spf
 
 parser = argparse.ArgumentParser()
 parser.add_argument('domain', help="The domain to perform testing on")
@@ -32,7 +33,7 @@ def domTest(dom):
     exit()
 
 def parentTest(nsresp):
-  logging.info("Running 'parent' checks")
+  logging.info("Running 'parent' checks...")
   parent = {}
   #nsresp = dns.resolver.resolve(dom, 'NS')
 
@@ -54,7 +55,7 @@ def parentTest(nsresp):
   return parent
 
 def nsTest(nsresp, dom):
-  logging.info("Running 'ns' checks")
+  logging.info("Running 'ns' checks...")
   ns = {}
   nameservers = []
   servers = {}
@@ -245,7 +246,7 @@ def nsTest(nsresp, dom):
   return ns, servers
 
 def soaTest(nsresp, dom, servers):
-  logging.info("Running 'soa' checks")
+  logging.info("Running 'soa' checks...")
   soa = {}
   soars = []
   slist = {}
@@ -381,7 +382,7 @@ def parseSOA(record):
   return soar
 
 def mxTest(dom):
-  logging.info("Running 'mx' checks")
+  logging.info("Running 'mx' checks...")
   mx = {}
 
   test = "MX records check"
@@ -517,22 +518,22 @@ def mailTest(mails, dom):
         else: ban = str(b[1])
         connects.append("{} | {}\n".format(name, ban))
 
-        if dom == "ecfirst.com": tdom = "example.com"
+        if dom == "ecfirst.com": tdom = "mirusec.com"
         else: tdom = 'ecfirst.com'
         sender = 'tester@{}'.format(tdom)
         recept = ['test.user@{}'.format(tdom)]
-        message = "From: tester <tester@ecfirst.com>\nTo: test user <test.user@ecfirst.com>\nSubject: Testing\n\nThis is a test\n\n"
+        message = "From: tester <tester@{}>\nTo: test user <test.user@{}>\nSubject: Testing\n\nThis is a test\n\n".format(tdom, tdom)
 
         m = smtp.sendmail(sender, recept, message)
         open = True
         relays.append("{} | OPEN RELAY\n".format(name))
     except Exception as err:
-      if "550, " in str(err):
+      if "Relay " in str(err) or "relay" in str(err):
+        relays.append("{} | {}\n".format(name, str(err)))
+      else:
+        logging.warning("Issue connecting to '{}': {}".format(name, str(err)))
         con = False
         connects.append("{} | {}\n".format(name, str(err)))
-      elif "554, " in str(err):
-        relays.append("{} | {}\n".format(name, str(err)))
-      else: logging.warning("Issue connecting to '{}': {}".format(name, str(err)))
 
   if con: stat = "PASS"
   else: stat = "FAIL"
@@ -550,17 +551,78 @@ def mailTest(mails, dom):
 
   return mail
 
-def dnssecTest(dom):
+def dnssecTest(dom, mails):
   
   return
 
-def spfTest(dom):
-  
-  return
+def spfTest(dom, mails):
+  logging.info("Running 'spf' checks...")
+  thespf = {}
+
+  test = "SPF record check"
+  text = "This domain does have an SPF record\n\n"
+  stat = ''
+
+  spfrec = False
+  spfres = []
+  spfrecord = ''
+
+  a = dns.resolver.resolve(dom, 'TXT')
+  if len(a.rrset) > 0:
+    for rec in a.rrset:
+      if (rec.to_text()).startswith('"v=spf1'):
+        spfrec = True
+        spfrecord = rec.to_text()
+        spfres.append("{} | {}\n".format(dom, spfrecord))
+        break
+
+  if spfrec: stat = "PASS"
+  else:
+    stat = "FAIL"
+    spfres.append("{} | NO SPF RECORD\n".format(dom))
+
+  thespf[test] = {text:spfres, "Status":stat}
+
+  test = "SPF coverage"
+  text = "The SPF record contains all listed mail servers\n\n"
+  stat = ''
+
+  spfi = True
+  spfres = []
+
+  if spfrecord:
+    for name in mails:
+      ips = mails[name]
+      for ip in ips:
+        check = spf.check2(ip, "tester@{}".format(dom), dom)
+        if check[0] != "pass":
+          spfi = False
+          spfres.append("{}[{}] | NOT IN SPF\n".format(name, ip))
+
+    if spfi: stat = "PASS"
+    else: stat = "FAIL"
+
+    thespf[test] = {text:spfres, "Status":stat}
+
+  test = "Permissive SPF record"
+  text = "The SPF record does not contain the overly permissive modifier '+all'\n\n"
+  stat = ''
+
+  spfa = False
+
+  if spfrecord:
+    if "+all" in spfrecord: spfa = True
+
+  if spfa: stat = "FAIL"
+  else: stat = "PASS"
+
+  thespf[test] = {text:[], "Status":stat}
+
+  return thespf
 
 def reswrite(res, file):
   #{test:{text:result/info, Status:stat}
-  tests = ["parent", "ns", "soa", "mx", "mail"] #, "dnssec", "spf"]
+  tests = ["parent", "ns", "soa", "mx", "mail", "spf"] #, "dnssec"]
   logging.info("Writing results...")
   with open(file, 'w') as f:
     f.write("Test,Status,Info\n")
@@ -578,6 +640,8 @@ def reswrite(res, file):
             for s in t: st += s
             info = text + st
         f.write('{},{},"{}"\n'.format(test, status, info))
+
+  logging.info("Results written to '{}'".format(file))
 
   return
 
@@ -598,11 +662,13 @@ ns, servers = nsTest(nsresp, dom)
 soa = soaTest(nsresp, dom, servers)
 mx, mails = mxTest(dom)
 mail = mailTest(mails, dom)
+thespf = spfTest(dom, mails)
 
 res['parent'] = parent
 res['ns'] = ns
 res['soa'] = soa
 res['mx'] = mx
 res['mail'] = mail
+res['spf'] = thespf
 
 reswrite(res, file)
