@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 # Takes a 2 column (IP,String) CSV file and tests each String
 # on the listed IP to validate read vs write level SNMP access
