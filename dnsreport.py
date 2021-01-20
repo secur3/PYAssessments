@@ -2,8 +2,12 @@
 
 #Performs various DNS tests against the provided domain
 #proxies some mail tests through scans.ecfirst.com
+#some DNSSEC code pulled from 'https://stackoverflow.com/questions/26137036/programmatically-check-if-domains-are-dnssec-protected'
 
 import dns.resolver
+import dns.message
+import dns.name
+import dns.query
 import argparse
 import logging
 import re
@@ -528,7 +532,7 @@ def mailTest(mails, dom):
         open = True
         relays.append("{} | OPEN RELAY\n".format(name))
     except Exception as err:
-      if "Relay " in str(err) or "relay" in str(err):
+      if "Relay " in str(err) or "relay" in str(err) or "ATTR35" in str(err):
         relays.append("{} | {}\n".format(name, str(err)))
       else:
         logging.warning("Issue connecting to '{}': {}".format(name, str(err)))
@@ -551,9 +555,62 @@ def mailTest(mails, dom):
 
   return mail
 
-def dnssecTest(dom, mails):
-  
-  return
+def dnssecTest(dom, servers):
+  logging.info("Running 'dnssec' checks...")
+  dnssec = {}
+
+  for nsname in servers:
+    nsaddr = servers[nsname]
+    break
+
+  test = "DNSSEC records check"
+  text = "This domain does have DNSSEC records\n\n"
+  stat = ''
+
+  dsec = False
+  dres = []
+
+  request = dns.message.make_query(dom, "DNSKEY", want_dnssec=True)
+  try:
+    response = dns.query.udp(request, nsaddr)
+    if response.rcode() != 0: dres.append("{} | NO DNSKEY\n".format(dom))
+    else:
+      answer = response.answer
+      if len(answer) != 2: logging.warning("Error getting DNSKEY: {}".format(str(err)))
+      else:
+        dsec = True
+        dres.append("{}\n".format(answer[0].to_text()))
+  except Exception as err:
+    logging.warning("Error getting DNSKEY: {}".format(str(err)))
+
+  if dsec: stat = "PASS"
+  else: stat = "FAIL"
+
+  dnssec[test] = {text:dres, "Status":stat}
+
+  if dsec:
+    test = "DNSKEY is valid"
+    text = "The DNSKEY for the domain is valid\n\n"
+    stat = ''
+
+    dkey = True
+    dres = []
+
+    name = dns.name.from_text(dom)
+
+    try:
+      d = dns.dnssec.validate(answer[0], answer[1], {name:answer[0]})
+      dres.append("{} | {}\n".format(dom, answer[1][0].to_text()))
+    except Exception as err:
+      dkey = False
+      dres.append("{} | DNSKEY IS NOT VALID\n".format(dom))
+
+    if dkey: stat = "PASS"
+    else: stat = "FAIL"
+
+    dnssec[test] = {text:dres, "Status":stat}
+
+  return dnssec
 
 def spfTest(dom, mails):
   logging.info("Running 'spf' checks...")
@@ -625,7 +682,7 @@ def spfTest(dom, mails):
 
 def reswrite(res, file):
   #{test:{text:result/info, Status:stat}
-  tests = ["parent", "ns", "soa", "mx", "mail", "spf"] #, "dnssec"]
+  tests = ["parent", "ns", "soa", "mx", "mail", "spf", "dnssec"]
   logging.info("Writing results...")
   with open(file, 'w') as f:
     f.write("Test,Status,Info\n")
@@ -666,6 +723,7 @@ soa = soaTest(nsresp, dom, servers)
 mx, mails = mxTest(dom)
 mail = mailTest(mails, dom)
 thespf = spfTest(dom, mails)
+dnssec = dnssecTest(dom, servers)
 
 res['parent'] = parent
 res['ns'] = ns
@@ -673,5 +731,6 @@ res['soa'] = soa
 res['mx'] = mx
 res['mail'] = mail
 res['spf'] = thespf
+res['dnssec'] = dnssec
 
 reswrite(res, file)
