@@ -573,13 +573,11 @@ def dnssecTest(dom, servers):
   request = dns.message.make_query(dom, "DNSKEY", want_dnssec=True)
   try:
     response = dns.query.udp(request, nsaddr)
-    if response.rcode() != 0: dres.append("{} | NO DNSKEY\n".format(dom))
+    answer = response.answer
+    if len(answer) != 2: dres.append("{} | NO DNSKEY\n".format(dom))
     else:
-      answer = response.answer
-      if len(answer) != 2: logging.warning("Error getting DNSKEY: {}".format(str(err)))
-      else:
-        dsec = True
-        dres.append("{}\n".format(answer[0].to_text()))
+      dsec = True
+      dres.append("{}\n".format(answer[0].to_text()))
   except Exception as err:
     logging.warning("Error getting DNSKEY: {}".format(str(err)))
 
