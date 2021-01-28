@@ -52,7 +52,10 @@ def parentTest(nsresp):
     nslist.append('{}\n'.format(name))
 
   if (nscount >= 2 and nscount < 8): stat = "PASS"
-  else: stat = "FAIL"
+  else:
+    stat = "FAIL"
+    if nscount < 2: text = "Less than 2 nameservers exist\n\n"
+    else: text = "More than 8 nameservers exist (RFC1912 section 2.8 recommends that you have no more than 7).\n\n"
 
   parent[test] = {text:nslist, "Status":stat}
 
@@ -84,7 +87,9 @@ def nsTest(nsresp, dom):
     if ip in nsips: dup = True
     else: nsips.append(ip)
 
-  if dup: stat = "FAIL"
+  if dup:
+    stat = "FAIL"
+    text = "Some nameservers have duplicate addresses\n\n"
   else: stat = "PASS"
 
   ns[test] = {text:nameservers, "Status":stat}
@@ -111,7 +116,9 @@ def nsTest(nsresp, dom):
       allresp = False
 
   if allresp: stat = "PASS"
-  else: stat = "FAIL" 
+  else:
+    stat = "FAIL"
+    text = "Some nameservers did not respond\n\n"
 
   ns[test] = {text:nsq, "Status":stat}
 
@@ -137,7 +144,9 @@ def nsTest(nsresp, dom):
         recs.append('{} | {} - Error\n'.format(name, ip))
       else:recs.append('{} | {}\n'.format(name, ip))
 
-  if recurs: stat = "FAIL"
+  if recurs:
+    stat = "FAIL"
+    text = "Some nameservers respond recursive queries\n\n"
   else: stat = "PASS"
 
   ns[test] = {text:recs, "Status":stat}
@@ -161,7 +170,9 @@ def nsTest(nsresp, dom):
       mtcp = False
 
   if mtcp: stat = "PASS"
-  else: stat = "FAIL"
+  else:
+    stat = "FAIL"
+    text = "Some nameservers do not respond to TCP queries\n\n"
 
   ns[test] = {text:noresp, "Status":stat}
 
@@ -190,7 +201,9 @@ def nsTest(nsresp, dom):
     except Exception as err:
       novers.append('{}[{}] | {}\n'.format(name, ip, err.msg))
 
-  if vers: stat = "FAIL"
+  if vers:
+    stat = "FAIL"
+    text = "Some nameservers return version numbers\n\n"
   else: stat = "PASS"
 
   ns[test] = {text:novers, "Status":stat}
@@ -226,7 +239,9 @@ def nsTest(nsresp, dom):
       diffs.append('{}[{}] | {}\n'.format(name, ip, err.msg))
 
   if ident: stat = "PASS"
-  else: stat = "FAIL"
+  else:
+    stat = "FAIL"
+    text = "Some nameservers provide a differing list of nameservers\n\n"
 
   ns[test] = {text:diffs, "Status":stat}
 
@@ -243,7 +258,9 @@ def nsTest(nsresp, dom):
     pips.append('{} | {}\n'.format(name, ip))
 
   if pub: stat = "PASS"
-  else: stat = "FAIL"
+  else:
+    stat = "FAIL"
+    text = "Some nameserver addresses are private\n\n"
 
   ns[test] = {text:pips, "Status":stat}
 
@@ -284,7 +301,9 @@ def soaTest(nsresp, dom, servers):
       soars.append('{} | {} - NO SOA\n'.format(name, ip))
 
   if rec: stat = "PASS"
-  else: stat = "FAIL"
+  else:
+    stat = "FAIL"
+    text = "Some nameservers do not provide a SOA record for the zone\n\n"
 
   data = ''
   data += 'Primary: {}\nHostmaster: {}\nSerial: {}\nRefresh: {}\nRetry: {}\nExpire: {}\nMinimum: {}'.format(msoa['primary'], msoa['hostmaster'], msoa['serial'], msoa['refresh'], msoa['retry'], msoa['expire'], msoa['minimum'])
@@ -306,7 +325,9 @@ def soaTest(nsresp, dom, servers):
     serials.append('{} | {}\n'.format(name, serial))
 
   if soap: stat = "PASS"
-  else: stat = "FAIL"
+  else:
+    stat = "FAIL"
+    text = "Some nameserver SOAs have differing serial numbers\n\n"
 
   soa[test] = {text:serials, "Status":stat}
 
@@ -319,6 +340,7 @@ def soaTest(nsresp, dom, servers):
 
   if len(soac) > 0:
     stat = "FAIL"
+    text = "One or more SOA fields are outside recommended ranges\n\n"
     for field in soac:
       soaf.append("{} {}".format(field, soac[field]))
 
@@ -425,7 +447,10 @@ def mxTest(dom):
   if mc == 0: mxs.append("No MX records found\n")
 
   if mmx: stat = "PASS"
-  else: stat = "FAIL"
+  else:
+    stat = "FAIL"
+    if mc == 0: text = "No MX records exist within the zone\n\n"
+    else: text = "Only one MX record exists within the zone\n\n"
 
   mx[test] = {text:mxs, "Status":stat}
 
@@ -438,11 +463,15 @@ def mxTest(dom):
     addrs = mails[name]
     diffadd.append("{} | {}\n".format(name, addrs))
 
-  if len(mxaddrs) < 2: stat = "WARNING"
+  if len(mxaddrs) < 2:
+    stat = "WARNING"
+    text = "MX record resolves to a single IP address\n\n"
   elif not mxdup: stat = "PASS"
   else:
     if len(mxaddrs) > 1: stat = "PASS"
-    else: stat = "FAIL"
+    else:
+      stat = "FAIL"
+      text = "Hostnames referenced by MX records resolve to the same IP address\n\n"
 
   mx[test] = {text:diffadd, "Status":stat}
 
@@ -468,7 +497,9 @@ def mxTest(dom):
         rr = False
 
   if rr: stat = "PASS"
-  else: stat = "FAIL"
+  else:
+    stat = "FAIL"
+    text = "Some addresses referenced by MX records do not have matching reverse DNS entries\n\n"
 
   mx[test] = {text:rrs, "Status":stat}
 
@@ -493,7 +524,9 @@ def mailTest(mails, dom):
       pips.append('{} | {}\n'.format(name, ip))
 
   if pub: stat = "PASS"
-  else: stat = "FAIL"
+  else:
+    stat = "FAIL"
+    text = "Some mailserver IP addresses are private\n\n"
 
   mail[test] = {text:pips, "Status":stat}
 
@@ -540,15 +573,19 @@ def mailTest(mails, dom):
         connects.append("{} | {}\n".format(name, str(err)))
 
   if con: stat = "PASS"
-  else: stat = "FAIL"
+  else:
+    stat = "FAIL"
+    text = "Some connections to Mailservers port 25 failed\n\n"
 
   mail[test] = {text:connects, "Status":stat}
 
   test = "Open relay"
-  text = "Mailserver does not appear to be an open relay\n\n"
+  text = "Mailservers do not appear to be an open relay\n\n"
   stat = ''
 
-  if open: stat = "FAIL"
+  if open:
+    stat = "FAIL"
+    text = "Some mailservers appear to be open relays\n\n"
   else: stat = "PASS"
 
   mail[test] = {text:relays, "Status":stat}
@@ -582,7 +619,9 @@ def dnssecTest(dom, servers):
     logging.warning("Error getting DNSKEY: {}".format(str(err)))
 
   if dsec: stat = "PASS"
-  else: stat = "FAIL"
+  else:
+    stat = "FAIL"
+    text = "This domain does not have DNSSEC records\n\n"
 
   dnssec[test] = {text:dres, "Status":stat}
 
@@ -604,7 +643,9 @@ def dnssecTest(dom, servers):
       dres.append("{} | DNSKEY IS NOT VALID\n".format(dom))
 
     if dkey: stat = "PASS"
-    else: stat = "FAIL"
+    else:
+      stat = "FAIL"
+      text = "The DNSKEY does not appear to be valid for the domain\n\n"
 
     dnssec[test] = {text:dres, "Status":stat}
 
@@ -637,6 +678,7 @@ def spfTest(dom, mails):
   if spfrec: stat = "PASS"
   else:
     stat = "FAIL"
+    text = "The domain does not have an SPF record\n\n"
     spfres.append("{} | NO SPF RECORD\n".format(dom))
 
   thespf[test] = {text:spfres, "Status":stat}
@@ -658,7 +700,9 @@ def spfTest(dom, mails):
           spfres.append("{}[{}] | NOT IN SPF\n".format(name, ip))
 
     if spfi: stat = "PASS"
-    else: stat = "FAIL"
+    else:
+      stat = "FAIL"
+      text = "The SPF value does not allow mail delivery from all mailservers in the domain\n\n"
 
     thespf[test] = {text:spfres, "Status":stat}
 
@@ -671,7 +715,9 @@ def spfTest(dom, mails):
   if spfrecord:
     if "+all" in spfrecord: spfa = True
 
-    if spfa: stat = "FAIL"
+    if spfa:
+      stat = "FAIL"
+      text = "The SPF record contains the overly permissive modifier '+all'\n\n"
     else: stat = "PASS"
 
     thespf[test] = {text:[], "Status":stat}
